@@ -1,22 +1,21 @@
 import { memo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Chick } from './Chick';
 import { PaperTexture } from './PaperTexture';
-import { moods } from '../moods';
+import { Mood, moods } from '../moods';
 import { labelOf } from '../dates';
 import { theme } from '../theme';
 import type { Entry } from '../storage';
-import type { ChickMood } from '../chickSvgs';
 
 const { color, font } = theme;
 export const LINE = 38; // 줄 간격 = 글자 줄 높이
+export const SLOT = 22; // 스프링 한 칸 높이 (겉 스프링과 같은 값)
 
 type Props = {
   dayKey: string;
   entry?: Entry;
   isToday: boolean;
   onText: (day: string, text: string) => void;
-  onMood: (day: string, mood: ChickMood) => void;
+  onMood: (day: string, mood: Mood) => void;
   onScratch: () => void;
   onFlip: (dir: 1 | -1) => void;
   holes: number; // 스프링 구멍 개수 (책 겉 스프링과 같은 값)
@@ -46,9 +45,11 @@ function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onScratch, onFl
       <View style={s.header}>
         <View style={{ flex: 1 }}>
           <Text style={s.date} numberOfLines={1}>{labelOf(dayKey)}</Text>
-          <Text style={s.sub}>{isToday ? '오늘의 일기' : '그날의 일기'}</Text>
+          <View style={s.subRow}>
+            <Text style={s.sub}>{isToday ? '오늘의 일기' : '그날의 일기'}</Text>
+            {mood && <Text style={s.headMood}>{moods.find((m) => m.key === mood)?.emoji}</Text>}
+          </View>
         </View>
-        <Chick mood={mood ?? 'normal'} size={64} />
       </View>
 
       <ScrollView
@@ -70,9 +71,9 @@ function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onScratch, onFl
               onText(dayKey, t);
             }}
             onContentSizeChange={(e) => setContentH(e.nativeEvent.contentSize.height)}
-            placeholder={'오늘은 어떤 하루였어?\n여기에 콕콕 적어봐 🐥'}
-            placeholderTextColor="#C9B98F"
-            selectionColor={color.yolk}
+            placeholder={'오늘은 어떤 하루였어?\n여기에 자유롭게 적어보세요.'}
+            placeholderTextColor="#CBBFAE"
+            selectionColor={color.accent}
             textAlignVertical="top"
           />
         </View>
@@ -103,8 +104,8 @@ function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onScratch, onFl
                 accessibilityLabel={`기분 ${m.label}`}
                 style={[s.moodBtn, on && s.moodBtnOn]}
               >
-                <Chick mood={m.key} size={40} />
-                <Text style={[s.moodLabel, on && s.moodLabelOn]}>{m.label}</Text>
+                <Text style={s.moodEmoji}>{m.emoji}</Text>
+                <Text style={[s.moodLabel, on && s.moodLabelOn]} numberOfLines={1}>{m.label}</Text>
               </Pressable>
             );
           })}
@@ -118,21 +119,21 @@ export const DiaryPage = memo(DiaryPageBase);
 
 const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: color.paper, borderTopRightRadius: 10, borderBottomRightRadius: 10, overflow: 'hidden' },
-  margin: { position: 'absolute', left: 54, top: 0, bottom: 0, width: 2, backgroundColor: color.margin, opacity: 0.8 },
-  holes: { position: 'absolute', left: 12, top: 0, bottom: 0, width: 16, justifyContent: 'space-around' },
-  holeSlot: { height: 16, alignItems: 'center', justifyContent: 'center' },
-  hole: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#B9A678', opacity: 0.55 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingLeft: 66, paddingRight: 10, paddingTop: 12 },
+  margin: { position: 'absolute', left: theme.pageLeft - 14, top: 0, bottom: 0, width: 2, backgroundColor: color.margin, opacity: 0.8 },
+  holes: { position: 'absolute', left: 14, top: 0, bottom: 0, width: 18, justifyContent: 'space-around' },
+  holeSlot: { height: SLOT, alignItems: 'center', justifyContent: 'center' },
+  hole: { width: 14, height: 14, borderRadius: 7, backgroundColor: '#CDBFA6', opacity: 0.7 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingLeft: theme.pageLeft, paddingRight: 14, paddingTop: 14 },
   date: { fontFamily: font.bold, fontSize: 26, color: color.text },
   sub: { fontFamily: font.regular, fontSize: 18, color: color.textSoft, marginTop: -2 },
-  area: { flex: 1, marginTop: 4, paddingLeft: 68, paddingRight: 16 },
-  rule: { position: 'absolute', left: -68, right: -16, height: 1.5, backgroundColor: color.rule },
+  area: { flex: 1, marginTop: 4, paddingLeft: theme.pageLeft, paddingRight: 16 },
+  rule: { position: 'absolute', left: -theme.pageLeft, right: -16, height: 1.5, backgroundColor: color.rule },
   input: {
     fontFamily: font.regular, fontSize: 23, lineHeight: LINE, color: color.text,
     padding: 0, margin: 0, includeFontPadding: false,
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
   },
-  moodBar: { paddingLeft: 66, paddingRight: 12, paddingBottom: 12, paddingTop: 6 },
+  moodBar: { paddingLeft: theme.pageLeft - 2, paddingRight: 12, paddingBottom: 12, paddingTop: 6 },
   navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
   navBtn: { minWidth: 72, minHeight: theme.minTouch, justifyContent: 'center' },
   navText: { fontFamily: font.bold, fontSize: 20, color: color.text },
@@ -142,7 +143,10 @@ const s = StyleSheet.create({
     flex: 1, minHeight: theme.minTouch + 24, alignItems: 'center', justifyContent: 'center',
     borderRadius: 16, borderWidth: 2.5, borderColor: 'transparent', paddingVertical: 4,
   },
-  moodBtnOn: { borderColor: color.yolk, backgroundColor: '#FFF1B0' },
-  moodLabel: { fontFamily: font.regular, fontSize: 15, color: color.textSoft },
+  moodBtnOn: { borderColor: color.accent, backgroundColor: color.accentSoft },
+  moodEmoji: { fontSize: 30 },
+  subRow: { flexDirection: 'row', alignItems: 'center' },
+  headMood: { fontSize: 24, marginLeft: 8 },
+  moodLabel: { fontFamily: font.regular, fontSize: 14, color: color.textSoft },
   moodLabelOn: { fontFamily: font.bold, color: color.text },
 });

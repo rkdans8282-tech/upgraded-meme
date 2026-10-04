@@ -1,18 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { ChickMood } from './chickSvgs';
+import type { Mood } from './moods';
 
-export type Entry = { mood?: ChickMood; text?: string };
+export type Entry = { mood?: Mood; text?: string };
 export type Entries = Record<string, Entry>; // { "2026-10-04": { mood, text } }
 
-const KEY = 'ppiyak:entries';
-const OLD_MOODS = 'ppiyak:moods'; // 예전 버전(기분만 저장)
+const KEY = 'ppiyak:entries'; // 이전 버전 데이터가 남도록 키 이름 유지
 
 export async function loadEntries(): Promise<Entries> {
   try {
-    const entries: Entries = JSON.parse((await AsyncStorage.getItem(KEY)) ?? '{}');
-    const old: Record<string, ChickMood> = JSON.parse((await AsyncStorage.getItem(OLD_MOODS)) ?? '{}');
-    for (const [day, mood] of Object.entries(old)) entries[day] = { mood, ...entries[day] };
-    return entries;
+    return JSON.parse((await AsyncStorage.getItem(KEY)) ?? '{}');
   } catch {
     return {};
   }

@@ -13,15 +13,16 @@ import { todayKey } from './src/dates';
 import { useEntries } from './src/useEntries';
 import { useSounds } from './src/sounds';
 import { theme } from './src/theme';
-import type { ChickMood } from './src/chickSvgs';
+import type { Mood } from './src/moods';
+import { SLOT } from './src/components/DiaryPage';
 
 const { color, font } = theme;
 type PaneKey = 'calendar' | 'decor' | 'settings';
 const TABS: { key: PaneKey | 'cover'; emoji: string; label: string; bg: string }[] = [
-  { key: 'calendar', emoji: '📅', label: '달력', bg: '#FFB6B6' },
-  { key: 'decor', emoji: '🎨', label: '꾸미기', bg: '#FFCB8A' },
-  { key: 'settings', emoji: '⚙️', label: '설정', bg: '#BFE0FF' },
-  { key: 'cover', emoji: '🐥', label: '표지', bg: '#C9EBB6' },
+  { key: 'calendar', emoji: '📅', label: '달력', bg: '#F2D3CC' },
+  { key: 'decor', emoji: '🎨', label: '꾸미기', bg: '#F4DDBD' },
+  { key: 'settings', emoji: '⚙️', label: '설정', bg: '#D3E2EE' },
+  { key: 'cover', emoji: '📕', label: '표지', bg: '#D8E5CF' },
 ];
 const PANE_TITLE: Record<PaneKey, string> = { calendar: '달력', decor: '꾸미기', settings: '설정' };
 
@@ -38,7 +39,7 @@ export default function App() {
   const coverAnim = useRef(new Animated.Value(0)).current;
   const pager = useRef<FlipHandle>(null);
 
-  const holes = Math.max(4, Math.floor(box.h / 64));
+  const holes = Math.max(6, Math.floor(box.h / 46)); // 두꺼운 스프링이 촘촘히
 
   const animateCover = (to: 0 | 1, end: 'cover' | 'book') => {
     sounds.flip();
@@ -51,7 +52,7 @@ export default function App() {
 
   const onText = useCallback((d: string, text: string) => update(d, { text }), [update]);
   const onMood = useCallback(
-    (d: string, mood: ChickMood) => {
+    (d: string, mood: Mood) => {
       Haptics.selectionAsync().catch(() => {});
       update(d, { mood });
     },
@@ -77,7 +78,6 @@ export default function App() {
   if (!fontsLoaded || !ready) return <View style={{ flex: 1, backgroundColor: color.desk }} />;
 
   const coverDeg = coverAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', `${FLIP_SIGN * 100}deg`] });
-  const coverChick = Math.min(box.w * 0.7, box.h * 0.36, 340);
 
   return (
     <SafeAreaProvider>
@@ -87,8 +87,9 @@ export default function App() {
           <View style={s.frame}>
             <View style={s.book} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
               {/* 책 두께(겹쳐진 종이 옆면) */}
-              <View style={[s.edge, { right: -9, bottom: -9, backgroundColor: '#E3D6A8' }]} />
-              <View style={[s.edge, { right: -5, bottom: -5, backgroundColor: color.paperEdge }]} />
+              <View style={[s.edge, { right: -12, bottom: -12, backgroundColor: '#DCCFB9' }]} />
+              <View style={[s.edge, { right: -8, bottom: -8, backgroundColor: '#E6DAC6' }]} />
+              <View style={[s.edge, { right: -4, bottom: -4, backgroundColor: color.paperEdge }]} />
 
               <View style={[s.pageBox, s.shadow]}>
                 {phase !== 'cover' && box.w > 0 && (
@@ -119,7 +120,7 @@ export default function App() {
                   ]}
                   pointerEvents={phase === 'cover' ? 'auto' : 'none'}
                 >
-                  <Cover onOpen={() => animateCover(1, 'book')} chickSize={coverChick} />
+                  <Cover onOpen={() => animateCover(1, 'book')} />
                 </Animated.View>
               )}
 
@@ -127,7 +128,9 @@ export default function App() {
               <View style={s.rings} pointerEvents="none">
                 {Array.from({ length: holes }, (_, i) => (
                   <View key={i} style={s.ringSlot}>
-                    <View style={s.ring} />
+                    <View style={s.ring}>
+                      <View style={s.ringShine} />
+                    </View>
                   </View>
                 ))}
               </View>
@@ -167,27 +170,29 @@ export default function App() {
 const s = StyleSheet.create({
   fill: { flex: 1 },
   desk: { flex: 1, backgroundColor: color.desk },
-  frame: { flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center', paddingLeft: 18, paddingRight: 48, paddingVertical: 14 },
+  frame: { flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center', paddingLeft: 34, paddingRight: 50, paddingVertical: 18 },
   book: { flex: 1 },
   edge: { position: 'absolute', left: 8, top: 6, borderRadius: 10 },
   pageBox: { ...StyleSheet.absoluteFill, backgroundColor: color.paper, borderTopRightRadius: 10, borderBottomRightRadius: 10 },
-  shadow: { shadowColor: '#6b4e16', shadowOpacity: 0.28, shadowRadius: 10, shadowOffset: { width: 2, height: 4 }, elevation: 6 },
-  rings: { position: 'absolute', left: -12, top: 0, bottom: 0, width: 40, justifyContent: 'space-around' },
-  ringSlot: { height: 16, justifyContent: 'center' },
+  shadow: { shadowColor: '#6b5a3e', shadowOpacity: 0.28, shadowRadius: 10, shadowOffset: { width: 2, height: 4 }, elevation: 6 },
+  rings: { position: 'absolute', left: -28, top: 0, bottom: 0, width: 66, justifyContent: 'space-around' },
+  ringSlot: { height: SLOT, justifyContent: 'center' },
   ring: {
-    width: 40, height: 9, borderRadius: 5, backgroundColor: '#D7DAE0', borderWidth: 1.5, borderColor: '#9FA4AE',
+    width: 66, height: 16, borderRadius: 8, backgroundColor: color.coil, borderWidth: 1.5, borderColor: color.coilEdge,
+    shadowColor: '#6b5a3e', shadowOpacity: 0.35, shadowRadius: 3, shadowOffset: { width: 1, height: 2 }, elevation: 3,
   },
+  ringShine: { position: 'absolute', top: 2.5, left: 8, right: 22, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.6)' },
   tabs: { position: 'absolute', right: -44, top: 36, width: 44 },
   tab: {
     height: 66, marginBottom: 8, alignItems: 'center', justifyContent: 'center',
-    borderTopRightRadius: 12, borderBottomRightRadius: 12, shadowColor: '#6b4e16', shadowOpacity: 0.2, shadowRadius: 3,
+    borderTopRightRadius: 12, borderBottomRightRadius: 12, shadowColor: '#6b5a3e', shadowOpacity: 0.2, shadowRadius: 3,
     shadowOffset: { width: 1, height: 1 }, elevation: 2,
   },
   tabEmoji: { fontSize: 22 },
   tabLabel: { fontFamily: font.bold, fontSize: 14, color: color.text, marginTop: 2 },
   foldRight: {
     position: 'absolute', right: 0, bottom: 0, width: 0, height: 0, borderStyle: 'solid',
-    borderLeftWidth: 34, borderBottomWidth: 34, borderLeftColor: 'transparent', borderBottomColor: '#E6D9AE',
+    borderLeftWidth: 34, borderBottomWidth: 34, borderLeftColor: 'transparent', borderBottomColor: '#E4D8C2',
     borderBottomRightRadius: 10,
   },
 });

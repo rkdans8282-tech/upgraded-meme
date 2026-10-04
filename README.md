@@ -1,6 +1,6 @@
-# 🐥 삐약일기
+# 📔 다이어리
 
-병아리 캐릭터와 함께 쓰는 아이폰·아이패드용 다이어리 앱 (Expo / React Native).
+파스텔 베이지 스프링 노트 느낌의 아이폰·아이패드용 다이어리 앱 (Expo / React Native).
 기획은 [PLAN.md](PLAN.md) 참고.
 
 ## 내 아이폰/아이패드에서 보기
@@ -11,4 +11,3 @@
 ## 폴더
 - `app/` 앱 코드 (`src/theme.ts` 색상, `src/components/` 표지·속지·책장 넘김)
 - `tools/make_assets.js` 종이 질감·효과음 생성
-- `Content/characters/` 병아리 SVG, `tools/make_chick.js` 로 재생성

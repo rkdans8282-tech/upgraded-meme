@@ -1,23 +1,21 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Chick } from './Chick';
 import { PaperTexture } from './PaperTexture';
 import { theme } from '../theme';
 
 const { color, font } = theme;
 
-// 공책 표지: 병아리가 가운데에 크게
-export function Cover({ onOpen, chickSize }: { onOpen: () => void; chickSize: number }) {
+// 공책 표지: 연한 베이지, 스티치 선, 고무 밴드, 가운데 이름표
+export function Cover({ onOpen }: { onOpen: () => void }) {
   return (
-    <Pressable style={s.cover} onPress={onOpen} accessibilityRole="button" accessibilityLabel="공책 펼치기">
-      <PaperTexture opacity={1.6} />
+    <Pressable style={s.cover} onPress={onOpen} accessibilityRole="button" accessibilityLabel="다이어리 펼치기">
+      <PaperTexture />
+      <View style={s.stitch} pointerEvents="none" />
       <View style={s.band} pointerEvents="none" />
-      <View style={s.center}>
-        <Chick mood="happy" size={chickSize} />
-        <View style={s.label}>
-          <PaperTexture />
-          <Text style={s.title}>삐약일기</Text>
-          <Text style={s.subtitle}>오늘도 콕콕 적어봐요</Text>
-        </View>
+      <View style={s.label}>
+        <PaperTexture />
+        <Text style={s.title}>Diary</Text>
+        <View style={s.rule} />
+        <Text style={s.year}>{new Date().getFullYear()}</Text>
       </View>
       <View style={s.openBtn}>
         <Text style={s.openText}>펼치기 ›</Text>
@@ -28,20 +26,27 @@ export function Cover({ onOpen, chickSize }: { onOpen: () => void; chickSize: nu
 
 const s = StyleSheet.create({
   cover: {
-    flex: 1, backgroundColor: color.yellow, borderTopRightRadius: 14, borderBottomRightRadius: 14,
+    flex: 1, backgroundColor: color.cover, borderTopRightRadius: 14, borderBottomRightRadius: 14,
     overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
   },
-  band: { position: 'absolute', right: 26, top: 0, bottom: 0, width: 14, backgroundColor: color.yolk, opacity: 0.55 },
-  center: { alignItems: 'center', justifyContent: 'center' },
+  stitch: {
+    position: 'absolute', left: 74, right: 16, top: 16, bottom: 16, borderRadius: 8,
+    borderWidth: 1.5, borderStyle: 'dashed', borderColor: color.coverDark,
+  },
+  band: { position: 'absolute', right: 40, top: 0, bottom: 0, width: 16, backgroundColor: color.coverDark, opacity: 0.7 },
   label: {
-    marginTop: 8, backgroundColor: color.paper, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 30,
-    alignItems: 'center', overflow: 'hidden', borderWidth: 2, borderColor: color.yolk,
+    backgroundColor: color.paper, borderRadius: 6, paddingVertical: 22, paddingHorizontal: 44,
+    alignItems: 'center', overflow: 'hidden', borderWidth: 1.5, borderColor: color.coverDark,
+    marginLeft: 40,
   },
-  title: { fontFamily: font.bold, fontSize: 40, color: color.text },
-  subtitle: { fontFamily: font.regular, fontSize: 18, color: color.textSoft, marginTop: -4 },
+  title: { fontFamily: font.bold, fontSize: 46, color: color.text, letterSpacing: 2 },
+  rule: { width: 56, height: 2, backgroundColor: color.coverDark, marginVertical: 8 },
+  year: { fontFamily: font.regular, fontSize: 22, color: color.textSoft },
   openBtn: {
-    position: 'absolute', bottom: 28, minHeight: 52, minWidth: 180, borderRadius: theme.radius.pill,
-    backgroundColor: color.paper, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28,
+    position: 'absolute', bottom: 34, left: 90, right: 70, alignItems: 'center',
   },
-  openText: { fontFamily: font.bold, fontSize: 24, color: color.text },
+  openText: {
+    fontFamily: font.bold, fontSize: 22, color: color.text, backgroundColor: color.paper, overflow: 'hidden',
+    paddingHorizontal: 30, paddingVertical: 12, borderRadius: theme.radius.pill,
+  },
 });

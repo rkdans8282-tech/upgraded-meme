@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "삐약일기",
-    "slug": "ppiyak-diary",
+    "name": "다이어리",
+    "slug": "diary",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -11,7 +11,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FFD93B",
+        "backgroundColor": "#E9DBC6",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"

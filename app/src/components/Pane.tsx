@@ -1,5 +1,4 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Chick } from './Chick';
 import { PaperTexture } from './PaperTexture';
 import { theme } from '../theme';
 
@@ -17,8 +16,7 @@ export function Pane({ title, onClose }: { title: string; onClose: () => void })
         </Pressable>
       </View>
       <View style={s.body}>
-        <Chick mood="sleepy" size={150} />
-        <Text style={s.msg}>{title}은(는) 준비 중이에요, 삐약!</Text>
+        <Text style={s.msg}>{title}은(는) 준비 중이에요</Text>
       </View>
     </View>
   );
@@ -26,10 +24,10 @@ export function Pane({ title, onClose }: { title: string; onClose: () => void })
 
 const s = StyleSheet.create({
   pane: { ...StyleSheet.absoluteFill, backgroundColor: color.paper, borderTopRightRadius: 10, borderBottomRightRadius: 10, overflow: 'hidden' },
-  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 68, paddingRight: 14, paddingTop: 14 },
+  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: theme.pageLeft, paddingRight: 14, paddingTop: 14 },
   title: { fontFamily: font.bold, fontSize: 32, color: color.text },
-  close: { minHeight: theme.minTouch, justifyContent: 'center', paddingHorizontal: 16, borderRadius: theme.radius.pill, backgroundColor: color.yellow },
+  close: { minHeight: theme.minTouch, justifyContent: 'center', paddingHorizontal: 16, borderRadius: theme.radius.pill, backgroundColor: color.accentSoft },
   closeText: { fontFamily: font.bold, fontSize: 20, color: color.text },
   body: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  msg: { fontFamily: font.regular, fontSize: 24, color: color.text, marginTop: 8 },
+  msg: { fontFamily: font.regular, fontSize: 24, color: color.textSoft },
 });

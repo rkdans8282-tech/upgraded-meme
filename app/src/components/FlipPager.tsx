@@ -122,7 +122,7 @@ const FlipPager = forwardRef<FlipHandle, Props>(function FlipPager(
           // 위 장이 들려 올라갈수록 아래 장이 밝아짐
           <Animated.View
             pointerEvents="none"
-            style={[styles.fill, { backgroundColor: '#3a2a10', opacity: forward ? fade(0.28, 0) : fade(0, 0.28) }]}
+            style={[styles.fill, { backgroundColor: '#3a2e1e', opacity: forward ? fade(0.28, 0) : fade(0, 0.28) }]}
           />
         )}
       </View>
@@ -132,7 +132,7 @@ const FlipPager = forwardRef<FlipHandle, Props>(function FlipPager(
           {/* 비스듬해질수록 그늘이 짙어짐 */}
           <Animated.View
             pointerEvents="none"
-            style={[styles.fill, { backgroundColor: '#3a2a10', opacity: forward ? fade(0, 0.35) : fade(0.35, 0) }]}
+            style={[styles.fill, { backgroundColor: '#3a2e1e', opacity: forward ? fade(0, 0.35) : fade(0.35, 0) }]}
           />
         </Animated.View>
       )}
