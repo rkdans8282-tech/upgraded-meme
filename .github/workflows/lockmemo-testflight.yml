@@ -11,7 +11,7 @@ jobs:
       TEAM_ID: ${{ secrets.TEAM_ID }}
       KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-      BUNDLE_PREFIX: ${{ vars.BUNDLE_PREFIX }}   # 예: com.hongildong
+      BUNDLE_PREFIX: ${{ vars.BUNDLE_PREFIX }}   # 예: com.ans99880
     steps:
       - uses: actions/checkout@v4
       - run: brew install xcodegen

@@ -8,9 +8,9 @@
 
 ## 2. 앱 등록 (App Store Connect)
 - Safari에서 appstoreconnect.apple.com → 앱 → ➕ 신규 앱
-- 번들 ID: `내접두어.lockmemo` (예: `com.hongildong.lockmemo`) — 없으면 먼저 developer.apple.com → Identifiers에서 App ID 등록
-- 위젯용 `내접두어.lockmemo.LockMemoWidget` App ID도 등록
-- Identifiers → App Groups → 등록: `group.내접두어.lockmemo`
+- 번들 ID: `com.ans99880.lockmemo` (예: `com.ans99880.lockmemo`) — 없으면 먼저 developer.apple.com → Identifiers에서 App ID 등록
+- 위젯용 `내접두어.lockmemo.widget` App ID도 등록
+- Identifiers → App Groups → 등록: `group.com.ans99880.lockmemo`
   그리고 위 두 App ID 모두 App Groups 기능을 켜고 이 그룹을 선택
 
 ## 3. API 키 만들기
@@ -21,7 +21,7 @@
 
 ## 4. GitHub 설정 (Safari, 저장소 → Settings → Secrets and variables → Actions)
 Secrets: `TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`(base64 결과)
-Variables: `BUNDLE_PREFIX` (예: `com.hongildong`)
+Variables: `BUNDLE_PREFIX` (`com.ans99880`)
 
 ## 5. 빌드
 - 저장소 → **Actions** → "LockMemo → TestFlight" → **Run workflow**
