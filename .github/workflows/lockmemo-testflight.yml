@@ -1,0 +1,41 @@
+name: LockMemo → TestFlight
+on: workflow_dispatch   # Actions 탭에서 "Run workflow" 버튼으로 실행
+
+jobs:
+  build:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: LockMemo
+    env:
+      TEAM_ID: ${{ secrets.TEAM_ID }}
+      KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      BUNDLE_PREFIX: ${{ vars.BUNDLE_PREFIX }}   # 예: com.hongildong
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - name: 번들 ID / App Group 치환
+        run: |
+          sed -i '' "s/com\.example/$BUNDLE_PREFIX/g" project.yml Shared/MemoStore.swift
+          sed -i '' "s/TEAM_ID_PLACEHOLDER/$TEAM_ID/" ExportOptions.plist
+          xcodegen
+      - name: API 키 저장
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "${{ secrets.ASC_KEY_P8 }}" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_$KEY_ID.p8
+      - name: Archive
+        run: |
+          xcodebuild archive -project LockMemo.xcodeproj -scheme LockMemo \
+            -destination 'generic/platform=iOS' -archivePath build/LockMemo.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_$KEY_ID.p8 \
+            -authenticationKeyID $KEY_ID -authenticationKeyIssuerID $ISSUER_ID \
+            DEVELOPMENT_TEAM=$TEAM_ID CURRENT_PROJECT_VERSION=${{ github.run_number }}
+      - name: TestFlight 업로드
+        run: |
+          xcodebuild -exportArchive -archivePath build/LockMemo.xcarchive \
+            -exportOptionsPlist ExportOptions.plist -exportPath build/out \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_$KEY_ID.p8 \
+            -authenticationKeyID $KEY_ID -authenticationKeyIssuerID $ISSUER_ID
