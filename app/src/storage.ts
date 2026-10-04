@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Mood } from './moods';
+import type { Sticker } from './stickers';
 
-export type Entry = { mood?: Mood; text?: string };
+export type Entry = { mood?: Mood; text?: string; stickers?: Sticker[] };
 export type Entries = Record<string, Entry>; // { "2026-10-04": { mood, text } }
 
 const KEY = 'ppiyak:entries'; // 이전 버전 데이터가 남도록 키 이름 유지
