@@ -1,24 +1,25 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ChickMood } from './chickSvgs';
 
-const KEY = 'ppiyak:moods'; // { "2026-10-04": "happy" }
+export type Entry = { mood?: ChickMood; text?: string };
+export type Entries = Record<string, Entry>; // { "2026-10-04": { mood, text } }
 
-export const todayKey = () => {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-};
+const KEY = 'ppiyak:entries';
+const OLD_MOODS = 'ppiyak:moods'; // 예전 버전(기분만 저장)
 
-export async function loadMoods(): Promise<Record<string, ChickMood>> {
+export async function loadEntries(): Promise<Entries> {
   try {
-    return JSON.parse((await AsyncStorage.getItem(KEY)) ?? '{}');
+    const entries: Entries = JSON.parse((await AsyncStorage.getItem(KEY)) ?? '{}');
+    const old: Record<string, ChickMood> = JSON.parse((await AsyncStorage.getItem(OLD_MOODS)) ?? '{}');
+    for (const [day, mood] of Object.entries(old)) entries[day] = { mood, ...entries[day] };
+    return entries;
   } catch {
     return {};
   }
 }
 
-export async function saveMood(date: string, mood: ChickMood) {
-  const all = await loadMoods();
-  all[date] = mood;
-  await AsyncStorage.setItem(KEY, JSON.stringify(all));
+export async function saveEntries(entries: Entries) {
+  try {
+    await AsyncStorage.setItem(KEY, JSON.stringify(entries));
+  } catch {}
 }
