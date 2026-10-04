@@ -42,11 +42,6 @@ export default function HomeScreen() {
             <Chick mood={mood ?? 'normal'} size={heroSize} />
           </View>
 
-          <View style={s.card}>
-            <Text style={s.cardTitle}>오늘의 일기</Text>
-            <Text style={s.cardEmpty}>아직 안 썼어요</Text>
-          </View>
-
           <Text style={s.section}>오늘 기분</Text>
           <View style={s.moodRow}>
             {moods.map((m) => {
@@ -101,9 +96,6 @@ const s = StyleSheet.create({
   moodBtnOn: { borderColor: color.yolk, backgroundColor: '#FFF2B8' },
   moodLabel: { fontSize: 14, color: color.textSoft, marginTop: 2 },
   moodLabelOn: { color: color.text, fontWeight: '800' },
-  card: { width: '100%', backgroundColor: color.paper, borderRadius: theme.radius.card, padding: 16, marginTop: 8 },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: color.text },
-  cardEmpty: { fontSize: 16, color: color.textSoft, marginTop: 6 },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 16, alignItems: 'center' },
   writeBtn: {
     minHeight: 56, minWidth: 240, paddingHorizontal: 32, borderRadius: theme.radius.pill,
