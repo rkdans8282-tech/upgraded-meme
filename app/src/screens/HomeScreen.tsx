@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Chick } from '../components/Chick';
 import { moods } from '../moods';
@@ -12,6 +12,8 @@ const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
 export default function HomeScreen() {
   const [mood, setMood] = useState<ChickMood | null>(null);
+  const { width, height } = useWindowDimensions();
+  const heroSize = Math.min(width - 80, height * 0.28, 380);
 
   useEffect(() => {
     loadMoods().then((m) => setMood(m[todayKey()] ?? null));
@@ -33,10 +35,17 @@ export default function HomeScreen() {
         <View style={s.content}>
           <Text style={s.date}>{title}</Text>
 
-          <View style={s.bubble}>
-            <Text style={s.bubbleText}>{say}</Text>
+          <View style={s.hero}>
+            <View style={s.bubble}>
+              <Text style={s.bubbleText}>{say}</Text>
+            </View>
+            <Chick mood={mood ?? 'normal'} size={heroSize} />
           </View>
-          <Chick mood={mood ?? 'normal'} size={200} />
+
+          <View style={s.card}>
+            <Text style={s.cardTitle}>오늘의 일기</Text>
+            <Text style={s.cardEmpty}>아직 안 썼어요</Text>
+          </View>
 
           <Text style={s.section}>오늘 기분</Text>
           <View style={s.moodRow}>
@@ -56,11 +65,6 @@ export default function HomeScreen() {
               );
             })}
           </View>
-
-          <View style={s.card}>
-            <Text style={s.cardTitle}>오늘의 일기</Text>
-            <Text style={s.cardEmpty}>아직 안 썼어요</Text>
-          </View>
         </View>
       </ScrollView>
 
@@ -79,15 +83,16 @@ export default function HomeScreen() {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: color.bg },
-  scroll: { paddingBottom: 110 },
-  content: { width: '100%', maxWidth: 560, alignSelf: 'center', alignItems: 'center', padding: 20 },
+  scroll: { flexGrow: 1, paddingBottom: 100 },
+  content: { flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center', alignItems: 'center', padding: 20 },
+  hero: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' },
   date: { fontSize: 24, fontWeight: '800', color: color.text, marginTop: 8 },
   bubble: {
     backgroundColor: color.paper, borderRadius: theme.radius.card, borderWidth: 2,
-    borderColor: color.yellow, paddingVertical: 12, paddingHorizontal: 18, marginTop: 14, marginBottom: 4,
+    borderColor: color.yellow, paddingVertical: 12, paddingHorizontal: 18, marginBottom: 8,
   },
   bubbleText: { fontSize: 17, color: color.text, textAlign: 'center' },
-  section: { alignSelf: 'flex-start', fontSize: 18, fontWeight: '700', color: color.text, marginTop: 18, marginBottom: 10 },
+  section: { alignSelf: 'flex-start', fontSize: 18, fontWeight: '700', color: color.text, marginTop: 16, marginBottom: 10 },
   moodRow: { flexDirection: 'row', gap: 10, width: '100%' },
   moodBtn: {
     flex: 1, minHeight: 92, alignItems: 'center', justifyContent: 'center', paddingVertical: 8,
@@ -96,7 +101,7 @@ const s = StyleSheet.create({
   moodBtnOn: { borderColor: color.yolk, backgroundColor: '#FFF2B8' },
   moodLabel: { fontSize: 14, color: color.textSoft, marginTop: 2 },
   moodLabelOn: { color: color.text, fontWeight: '800' },
-  card: { width: '100%', backgroundColor: color.paper, borderRadius: theme.radius.card, padding: 18, marginTop: 20 },
+  card: { width: '100%', backgroundColor: color.paper, borderRadius: theme.radius.card, padding: 16, marginTop: 8 },
   cardTitle: { fontSize: 16, fontWeight: '700', color: color.text },
   cardEmpty: { fontSize: 16, color: color.textSoft, marginTop: 6 },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 16, alignItems: 'center' },
