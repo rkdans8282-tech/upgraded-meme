@@ -53,3 +53,8 @@ fs.writeFileSync('Content/characters/preview.html',
  `<body style="margin:0;background:#FFF8DC;display:flex;flex-wrap:wrap;gap:8px;padding:16px;font-family:sans-serif;color:#5A4630">`+
  Object.keys(mood).map(n=>`<div style="text-align:center"><img src="chick_${n}.svg" width="220"><div>${n}</div></div>`).join('')+`</body>`);
 console.log('ok');
+
+// 앱에서 바로 쓰도록 TS 파일도 함께 생성
+fs.mkdirSync('app/src', { recursive: true });
+const out = Object.keys(mood).map(n => `  ${n}: ${JSON.stringify(fs.readFileSync(`Content/characters/chick_${n}.svg`, 'utf8'))},`).join('\n');
+fs.writeFileSync('app/src/chickSvgs.ts', `// 자동 생성 파일 — tools/make_chick.js 로 만들어집니다. 직접 고치지 마세요.\nexport const chickSvgs = {\n${out}\n} as const;\nexport type ChickMood = keyof typeof chickSvgs;\n`);
