@@ -160,7 +160,7 @@ type Entry = { mood?; text?; stickers?; strokes?: Stroke[]; photos?: PhotoItem[]
 
 ### 8.4 출시 준비물 (비개발)
 
-- Apple Developer Program 가입 (연 $99 가정) `[확인 필요]`
+- ~~Apple Developer Program 가입~~ → **이미 유료 가입 완료** (연 갱신일만 관리)
 - 앱 이름 확정·상표/중복 확인, 아이콘, 스크린샷 6장, 소개 문구(한국어/영어)
 - 개인정보 처리방침·이용약관 URL (간단한 페이지로 게시)
 - **앱 프라이버시 라벨** 작성 (수집 데이터 최소화로 단순화)
