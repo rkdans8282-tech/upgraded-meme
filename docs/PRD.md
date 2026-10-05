@@ -19,7 +19,7 @@
 | 날짜별 한 장, 텍스트 일기, 기분(이모지 4개) | ✅ 구현됨 |
 | 스티커 36종 + 내 PNG 추가, 이동/크기/회전/삭제/되돌리기 | ✅ 구현됨 |
 | 기기 내 저장 (AsyncStorage) | ✅ 구현됨 |
-| **펜/형광펜 손글씨** | ❌ 없음 |
+| **펜/형광펜/지우개 손글씨** (색 8종, 굵기 3단계, 되돌리기, 저장) | ✅ 구현됨 (M1, `react-native-svg`) |
 | **사진 넣기** | ❌ 없음 |
 | **사진 오려서 스티커 만들기** | ❌ 없음 |
 | 달력/목록, 설정, 알림 | ❌ 없음 |
@@ -129,7 +129,7 @@
 ### 8.1 스택
 
 - **Expo(React Native) + EAS Build/Submit** → Mac 없이 빌드·제출 가능 `[확인 필요: EAS 요금제/무료 빌드 한도]`
-- 그리기: `@shopify/react-native-skia` (Expo SDK 호환 버전 확인)
+- 그리기: **`react-native-svg`** (Expo Go에서 바로 동작. 획이 매우 많아져 느려지면 Skia로 교체 검토)
 - 제스처: `react-native-gesture-handler` / `reanimated` (스티커에 이미 사용 중이면 재사용)
 - 사진: `expo-image-picker`
 - 결제: RevenueCat (`react-native-purchases`) — **Expo Go에서는 동작하지 않으므로 개발 빌드(dev client) 필요**
@@ -195,7 +195,7 @@ type Entry = { mood?; text?; stickers?; strokes?: Stroke[]; photos?: PhotoItem[]
 
 | 주차 | 목표 | 완료 기준 |
 |---|---|---|
-| 1 | 앱 이름·아이콘 확정, 펜(M1) 구현 | 손글씨가 저장되고 다시 열린다 |
+| 1 | 앱 이름·아이콘 확정, 펜(M1) 구현 ✅ | 손글씨가 저장되고 다시 열린다 |
 | 2 | 펜 다듬기 + 사진 넣기(M2) | 사진 이동/확대/회전 |
 | 3 | 사진 오리기(M3) | 오려서 "내 스티커"에 저장 |
 | 4 | 달력(M4), 설정·알림·잠금(M5), 백업(M6) | 백업 후 복원 성공 |

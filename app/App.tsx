@@ -15,6 +15,7 @@ import { useSounds } from './src/sounds';
 import { theme } from './src/theme';
 import type { Mood } from './src/moods';
 import type { Sticker } from './src/stickers';
+import type { Stroke } from './src/strokes';
 import { SLOT } from './src/components/DiaryPage';
 
 const { color, font } = theme;
@@ -61,6 +62,7 @@ export default function App() {
   );
   const flipPage = useCallback((dir: 1 | -1) => pager.current?.flip(dir), []);
   const onStickers = useCallback((d: string, stickers: Sticker[]) => update(d, { stickers }), [update]);
+  const onStrokes = useCallback((d: string, strokes: Stroke[]) => update(d, { strokes }), [update]);
   const renderPage = useCallback(
     (key: string) => (
       <DiaryPage
@@ -70,12 +72,13 @@ export default function App() {
         onText={onText}
         onMood={onMood}
         onStickers={onStickers}
+        onStrokes={onStrokes}
         onScratch={sounds.scratch}
         onFlip={flipPage}
         holes={holes}
       />
     ),
-    [entries, today, onText, onMood, onStickers, sounds.scratch, flipPage, holes],
+    [entries, today, onText, onMood, onStickers, onStrokes, sounds.scratch, flipPage, holes],
   );
 
   if (!fontsLoaded || !ready) return <View style={{ flex: 1, backgroundColor: color.desk }} />;

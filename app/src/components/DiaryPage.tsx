@@ -1,9 +1,11 @@
 import { memo, useCallback, useRef, useState } from 'react';
 import { Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { PaperTexture } from './PaperTexture';
+import { InkLayer } from './InkLayer';
 import { StickerLayer } from './StickerLayer';
 import { StickerSheet } from './StickerSheet';
 import { SCALE_MAX, SCALE_MIN, Sticker, newId } from '../stickers';
+import { PEN_COLORS, Stroke, Tool, WIDTHS } from '../strokes';
 import { Mood, moods } from '../moods';
 import { labelOf } from '../dates';
 import { theme } from '../theme';
@@ -20,6 +22,7 @@ type Props = {
   onText: (day: string, text: string) => void;
   onMood: (day: string, mood: Mood) => void;
   onStickers: (day: string, stickers: Sticker[]) => void;
+  onStrokes: (day: string, strokes: Stroke[]) => void;
   onScratch: () => void;
   onFlip: (dir: 1 | -1) => void;
   holes: number; // 스프링 구멍 개수 (책 겉 스프링과 같은 값)
@@ -27,9 +30,10 @@ type Props = {
 
 // 공책 속지 한 장 = 하루
 const NO_STICKERS: Sticker[] = [];
+const NO_STROKES: Stroke[] = [];
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
-function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onStickers, onScratch, onFlip, holes }: Props) {
+function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onStickers, onStrokes, onScratch, onFlip, holes }: Props) {
   const [areaH, setAreaH] = useState(300);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [sheet, setSheet] = useState(false);
@@ -70,6 +74,32 @@ function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onStickers, onS
     Keyboard.dismiss();
     setSelectedId(null);
     setSheet(true);
+  };
+  // 손글씨(펜) 모드
+  const [drawing, setDrawing] = useState(false);
+  const [tool, setTool] = useState<Tool>('pen');
+  const [penColor, setPenColor] = useState(PEN_COLORS[0]);
+  const [widthIdx, setWidthIdx] = useState(1);
+  const strokes = entry?.strokes ?? NO_STROKES;
+  const strokeHistory = useRef<Stroke[][]>([]);
+  const [strokeUndo, setStrokeUndo] = useState(0);
+  const changeStrokes = useCallback(
+    (next: Stroke[]) => {
+      strokeHistory.current = [...strokeHistory.current.slice(-29), strokes];
+      setStrokeUndo(strokeHistory.current.length);
+      onStrokes(dayKey, next);
+    },
+    [strokes, onStrokes, dayKey],
+  );
+  const undoStroke = () => {
+    const prev = strokeHistory.current.pop();
+    setStrokeUndo(strokeHistory.current.length);
+    if (prev) onStrokes(dayKey, prev);
+  };
+  const startDrawing = () => {
+    Keyboard.dismiss();
+    setSelectedId(null);
+    setDrawing(true);
   };
   const [contentH, setContentH] = useState(0);
   const mood = entry?.mood;
@@ -127,7 +157,63 @@ function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onStickers, onS
         </View>
       </ScrollView>
 
-      {selected ? (
+      {/* 손글씨 층: 펜 모드일 때만 터치를 받음. 도구 막대보다 아래 층이라 막대는 항상 눌림 */}
+      <InkLayer
+        strokes={strokes}
+        pageW={box.w}
+        pageH={box.h}
+        drawing={drawing}
+        tool={tool}
+        color={penColor}
+        widthRatio={WIDTHS[widthIdx].ratio}
+        onChange={changeStrokes}
+      />
+
+      {drawing ? (
+        <View style={s.penBar}>
+          <View style={s.penRow}>
+            {([['pen', '✏️', '펜'], ['marker', '🖍', '형광펜'], ['eraser', '🧽', '지우개']] as const).map(([k, icon, label]) => (
+              <Pressable key={k} onPress={() => setTool(k)} accessibilityRole="button" accessibilityLabel={label} style={[s.toolBtn, tool === k && s.toolBtnOn]}>
+                <Text style={s.toolIcon}>{icon}</Text>
+                <Text style={s.toolLabel}>{label}</Text>
+              </Pressable>
+            ))}
+            <Pressable onPress={undoStroke} disabled={strokeUndo === 0} accessibilityRole="button" accessibilityLabel="되돌리기" style={[s.toolBtn, strokeUndo === 0 && { opacity: 0.35 }]}>
+              <Text style={s.toolIcon}>↩︎</Text>
+              <Text style={s.toolLabel}>되돌리기</Text>
+            </Pressable>
+          </View>
+          {tool !== 'eraser' && (
+            <>
+              <View style={s.penRow}>
+                {PEN_COLORS.map((c) => (
+                  <Pressable key={c} onPress={() => setPenColor(c)} accessibilityRole="button" accessibilityLabel={`색 ${c}`} style={[s.swatchWrap, penColor === c && s.swatchWrapOn]}>
+                    <View style={[s.swatch, { backgroundColor: c }]} />
+                  </Pressable>
+                ))}
+              </View>
+              <View style={s.penRow}>
+                {WIDTHS.map((w, i) => (
+                  <Pressable key={w.key} onPress={() => setWidthIdx(i)} accessibilityRole="button" accessibilityLabel={w.label} style={[s.widthBtn, widthIdx === i && s.toolBtnOn]}>
+                    <View style={[s.widthDot, { height: 3 + i * 4 + (tool === 'marker' ? 4 : 0), backgroundColor: penColor, opacity: tool === 'marker' ? 0.5 : 1 }]} />
+                  </Pressable>
+                ))}
+                <Pressable onPress={() => setDrawing(false)} accessibilityRole="button" accessibilityLabel="쓰기 끝" style={s.doneBtn}>
+                  <Text style={s.stickerBtnText}>✓ 완료</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
+          {tool === 'eraser' && (
+            <View style={s.penRow}>
+              <Text style={s.eraserHint}>지우고 싶은 글씨 위를 쓱 문지르세요</Text>
+              <Pressable onPress={() => setDrawing(false)} accessibilityRole="button" accessibilityLabel="쓰기 끝" style={s.doneBtn}>
+                <Text style={s.stickerBtnText}>✓ 완료</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+      ) : selected ? (
         <View style={s.editBar}>
           <EditBtn icon="－" label="작게" onPress={() => patchSelected((st) => ({ scale: clamp(st.scale * 0.85, SCALE_MIN, SCALE_MAX) }))} />
           <EditBtn icon="＋" label="크게" onPress={() => patchSelected((st) => ({ scale: clamp(st.scale * 1.18, SCALE_MIN, SCALE_MAX) }))} />
@@ -147,6 +233,9 @@ function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onStickers, onS
           <View style={s.toolRow}>
             <Pressable onPress={openSheet} style={s.stickerBtn} accessibilityRole="button" accessibilityLabel="스티커 붙이기">
               <Text style={s.stickerBtnText}>＋ 스티커</Text>
+            </Pressable>
+            <Pressable onPress={startDrawing} style={s.penBtn} accessibilityRole="button" accessibilityLabel="펜으로 쓰기">
+              <Text style={s.stickerBtnText}>✏️ 펜</Text>
             </Pressable>
             <Pressable onPress={undo} disabled={undoCount === 0} style={[s.undoBtn, undoCount === 0 && { opacity: 0.35 }]} accessibilityRole="button" accessibilityLabel="스티커 되돌리기">
               <Text style={s.undoText}>↩︎ 되돌리기</Text>
@@ -186,7 +275,9 @@ function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onStickers, onS
       )}
 
       {/* 스티커 층: 글 위에 올라가고, 스티커가 없는 곳은 터치가 글상자로 통과 */}
-      <StickerLayer stickers={stickers} selectedId={selectedId} pageW={box.w} pageH={box.h} onSelect={setSelectedId} onCommit={commit} />
+      <View style={StyleSheet.absoluteFill} pointerEvents={drawing ? 'none' : 'box-none'}>
+        <StickerLayer stickers={stickers} selectedId={selectedId} pageW={box.w} pageH={box.h} onSelect={setSelectedId} onCommit={commit} />
+      </View>
 
       {sheet && <StickerSheet onPick={addSticker} onClose={() => setSheet(false)} />}
     </View>
@@ -227,10 +318,28 @@ const s = StyleSheet.create({
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
   },
   toolRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
-  stickerBtn: { minHeight: theme.minTouch, justifyContent: 'center', paddingHorizontal: 20, borderRadius: theme.radius.pill, backgroundColor: color.accent },
+  stickerBtn: { minHeight: theme.minTouch, justifyContent: 'center', paddingHorizontal: 14, borderRadius: theme.radius.pill, backgroundColor: color.accent },
   stickerBtnText: { fontFamily: font.bold, fontSize: 21, color: color.text },
-  undoBtn: { minHeight: theme.minTouch, justifyContent: 'center', paddingHorizontal: 12 },
-  undoText: { fontFamily: font.bold, fontSize: 18, color: color.textSoft },
+  penBtn: { minHeight: theme.minTouch, justifyContent: 'center', paddingHorizontal: 14, borderRadius: theme.radius.pill, backgroundColor: color.accentSoft },
+  penBar: {
+    zIndex: 5, elevation: 5, position: 'relative',
+    gap: 6, paddingLeft: 54, paddingRight: 12, paddingTop: 8, paddingBottom: 14,
+    borderTopWidth: 1.5, borderTopColor: color.rule, backgroundColor: color.paper,
+  },
+  penRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  toolBtn: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 2.5, borderColor: 'transparent' },
+  toolBtnOn: { borderColor: color.accent, backgroundColor: color.accentSoft },
+  toolIcon: { fontSize: 22, color: color.text },
+  toolLabel: { fontFamily: font.bold, fontSize: 13, color: color.text },
+  swatchWrap: { flex: 1, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 20, borderWidth: 2.5, borderColor: 'transparent' },
+  swatchWrapOn: { borderColor: color.accent },
+  swatch: { width: 26, height: 26, borderRadius: 13 },
+  widthBtn: { flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 2.5, borderColor: 'transparent', paddingHorizontal: 14 },
+  widthDot: { width: '100%', borderRadius: 6 },
+  doneBtn: { minHeight: theme.minTouch, minWidth: 104, paddingHorizontal: 12, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: theme.radius.pill, backgroundColor: color.accent },
+  eraserHint: { flex: 1, fontFamily: font.regular, fontSize: 17, color: color.textSoft },
+  undoBtn: { minHeight: theme.minTouch, justifyContent: 'center', paddingHorizontal: 6 },
+  undoText: { fontFamily: font.bold, fontSize: 17, color: color.textSoft },
   editBar: {
     flexDirection: 'row', gap: 6, paddingLeft: 54, paddingRight: 12, paddingTop: 8, paddingBottom: 14,
     borderTopWidth: 1.5, borderTopColor: color.rule, backgroundColor: color.paper,
