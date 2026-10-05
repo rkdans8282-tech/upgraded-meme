@@ -1,4 +1,4 @@
-# 📔 다이어리 앱 PRD (수익화·출시 기준) v1.0
+# 📔 하루페이퍼 (Haru Paper) 앱 PRD (수익화·출시 기준) v1.1
 
 > 이 문서는 `PLAN.md`(디자인·방향)를 대체하지 않고, **"출시해서 돈을 벌려면 무엇을 어떤 순서로 만들까"** 에 집중한다.
 > 가격·수수료·API 단가 등 외부 수치는 **작성 시점 가정값**이다. 결정 전에 반드시 최신 정보를 확인할 것. (`[확인 필요]` 표시)
@@ -218,6 +218,6 @@ type Entry = { mood?; text?; stickers?; strokes?: Stroke[]; photos?: PhotoItem[]
 
 ## 13. 다음 액션
 
-1. 앱 이름 확정 (후보: Haru Paper / 하루장 / Coil / Pagey / Stickday)
+1. ~~앱 이름~~ → **결정: 하루페이퍼 / Haru Paper.** 남은 일: 앱스토어(한·미·일) 검색, KIPRIS 상표, 도메인·SNS 핸들 확인, 아이콘 제작, iOS 번들 ID 확정(예: `com.<본인>.harupaper`)
 2. `docs/SETUP.md` — Mac 없이 EAS로 개발 빌드/TestFlight 올리는 단계별 가이드 작성
 3. M1(펜) 구현 시작: Skia 호환 버전 확인 → `DiaryPage`에 그리기 레이어 추가
