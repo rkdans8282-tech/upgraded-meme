@@ -20,18 +20,6 @@ type Props = {
   onDelete: (id: string) => void;
 };
 
-// 표지 옆(왼쪽)에 걸친 흰 링 — 책 안쪽 스프링과 같은 모양을 작게
-function ThumbRings({ w, h }: { w: number; h: number }) {
-  const n = Math.max(5, Math.floor(h / (w * 0.22)));
-  return (
-    <View pointerEvents="none" style={{ position: 'absolute', left: -w * 0.1, top: 0, bottom: 0, width: w * 0.26, justifyContent: 'space-around' }}>
-      {Array.from({ length: n }, (_, i) => (
-        <View key={i} style={{ height: w * 0.045, borderRadius: w * 0.03, backgroundColor: '#fff', borderWidth: 0.5, borderColor: '#CFCFCF' }} />
-      ))}
-    </View>
-  );
-}
-
 // 앱을 열면 보이는 책장: 내 다이어리가 선반에 3권씩 진열됨
 export function Shelf({ diaries, slots, onOpen, onAdd, onEdit, onDelete }: Props) {
   const { width } = useWindowDimensions();
@@ -84,7 +72,6 @@ export function Shelf({ diaries, slots, onOpen, onAdd, onEdit, onDelete }: Props
                     >
                       <CoverArt cover={it.cover} title={it.title} year={it.year} w={cw} h={ch} />
                       <View pointerEvents="none" style={[StyleSheet.absoluteFill, s.edge]} />
-                      <ThumbRings w={cw} h={ch} />
                     </Pressable>
                   );
                 })}

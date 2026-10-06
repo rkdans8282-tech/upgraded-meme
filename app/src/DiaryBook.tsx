@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import FlipPager, { FLIP_SIGN } from './components/FlipPager';
 import { DiaryPage } from './components/DiaryPage';
 import { CalendarPage } from './components/CalendarPage';
-import { SLOT } from './components/PageHoles';
 import { Cover } from './components/Cover';
 import { PageIndex } from './components/PageIndex';
 import type { Diary } from './diaries';
@@ -47,7 +46,7 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
     };
   }, []);
 
-  const holes = Math.max(6, Math.floor(box.h / 46)); // 두꺼운 스프링이 촘촘히
+  const holes = 0; // 스프링 구멍 개수 (스프링 없는 노트: 0)
 
   // 저장 버튼: 지금 바로 저장하고 잠깐 알려줌 (평소에도 쓰는 대로 자동 저장됨)
   const [saved, setSaved] = useState(false);
@@ -243,16 +242,6 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
                 </View>
               )}
 
-              {/* 스프링 (흰 링) */}
-              <View style={s.rings} pointerEvents="none">
-                {Array.from({ length: holes }, (_, i) => (
-                  <View key={i} style={s.ringSlot}>
-                    <View style={s.ring}>
-                      <View style={s.ringShine} />
-                    </View>
-                  </View>
-                ))}
-              </View>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -264,7 +253,7 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
 const s = StyleSheet.create({
   fill: { flex: 1 },
   desk: { flex: 1, backgroundColor: color.desk },
-  frame: { flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center', paddingLeft: 34, paddingRight: 18, paddingTop: 52, paddingBottom: 18 },
+  frame: { flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center', paddingLeft: 12, paddingRight: 12, paddingTop: 52, paddingBottom: 14 },
   back: { position: 'absolute', top: 6, right: 14, zIndex: 20, minHeight: 40, paddingHorizontal: 8, justifyContent: 'center' },
   backText: { fontFamily: theme.font.regular, fontSize: 16, color: '#E6E6E6' },
   book: { flex: 1 },
@@ -274,11 +263,4 @@ const s = StyleSheet.create({
   toastText: { fontFamily: theme.font.bold, fontSize: 17, color: '#fff' },
   zoomPage: { backgroundColor: color.paper },
   shadow: { shadowColor: '#3b3326', shadowOpacity: 0.2, shadowRadius: 5, shadowOffset: { width: 1, height: 2 }, elevation: 4 },
-  rings: { position: 'absolute', left: -28, top: 0, bottom: 0, width: 66, justifyContent: 'space-around' },
-  ringSlot: { height: SLOT, justifyContent: 'center' },
-  ring: {
-    width: 66, height: 15, borderRadius: 8, backgroundColor: color.coil, borderWidth: 1, borderColor: color.coilEdge,
-    shadowColor: '#3b3326', shadowOpacity: 0.28, shadowRadius: 2.5, shadowOffset: { width: 1, height: 2 }, elevation: 3,
-  },
-  ringShine: { position: 'absolute', bottom: 2, left: 8, right: 8, height: 2, borderRadius: 1, backgroundColor: '#E8E8E8' },
 });

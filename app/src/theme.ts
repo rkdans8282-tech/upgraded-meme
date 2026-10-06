@@ -25,5 +25,5 @@ export const theme = {
   },
   radius: { pill: 999 },
   minTouch: 44,
-  pageLeft: 80, // 속지 왼쪽 여백 (스프링 구멍 + 여백선 자리)
+  pageLeft: 26, // 속지 왼쪽 여백 (스프링이 없어서 좁음)
 };

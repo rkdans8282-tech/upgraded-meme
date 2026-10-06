@@ -29,10 +29,10 @@ export function CoverArt({ cover, title, year, w, h, bare, children }: ArtProps)
       {cover.stitch && (
         <View
           pointerEvents="none"
-          style={{ position: 'absolute', left: w * 0.17, right: w * 0.04, top: w * 0.04, bottom: w * 0.04, borderWidth: Math.max(1, w * 0.003), borderStyle: 'dashed', borderColor: tc, opacity: 0.3 }}
+          style={{ position: 'absolute', left: w * 0.04, right: w * 0.04, top: w * 0.04, bottom: w * 0.04, borderWidth: Math.max(1, w * 0.003), borderStyle: 'dashed', borderColor: tc, opacity: 0.3 }}
         />
       )}
-      <View style={[s.titleBox, { marginLeft: w * 0.1 }]} pointerEvents="none">
+      <View style={s.titleBox} pointerEvents="none">
         <Text
           numberOfLines={2}
           adjustsFontSizeToFit
@@ -74,7 +74,7 @@ export function Cover({
 
 const s = StyleSheet.create({
   titleBox: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
-  openBtn: { position: 'absolute', bottom: 38, left: 64, right: 14, alignItems: 'center' },
+  openBtn: { position: 'absolute', bottom: 38, left: 14, right: 14, alignItems: 'center' },
   openText: {
     fontFamily: font.serif, fontSize: 13, letterSpacing: 4, borderWidth: 1,
     paddingHorizontal: 26, paddingVertical: 10, borderRadius: theme.radius.pill, overflow: 'hidden',

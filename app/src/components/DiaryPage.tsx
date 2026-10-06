@@ -197,7 +197,7 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
       {dateLabel ? <View style={s.frame} pointerEvents="none" /> : null}
       {dateLabel ? <DateTag dayKey={dateLabel} /> : null}
 
-      {!transparent && <ScrollView style={[s.area, dateLabel ? { marginTop: 92, paddingLeft: theme.pageLeft + 12, paddingRight: 24 } : null]} onLayout={(e) => setAreaH(e.nativeEvent.layout.height)} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+      {!transparent && <ScrollView style={[s.area, dateLabel ? { marginTop: 92, paddingLeft: 26, paddingRight: 24 } : null]} onLayout={(e) => setAreaH(e.nativeEvent.layout.height)} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <View style={{ height: total }}>
           <TextInput
             style={[s.input, { minHeight: areaH }]}
@@ -383,18 +383,18 @@ export const DiaryPage = memo(DiaryPageBase);
 const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: color.paper, overflow: 'hidden' },
   dateTag: {
-    position: 'absolute', left: theme.pageLeft + 6, top: 16, flexDirection: 'row', alignItems: 'center',
+    position: 'absolute', left: 18, top: 16, flexDirection: 'row', alignItems: 'center',
     borderWidth: 1, borderColor: '#2B2B2B', backgroundColor: color.paper, paddingVertical: 7, paddingHorizontal: 12,
   },
   // 공책 쪽 칸 나누기 구분선이 놓이는 영역 (테두리 포함)
-  panels: { position: 'absolute', left: theme.pageLeft - 8, right: 12, top: 22, bottom: 16, borderWidth: 1, borderColor: '#B9B9B9' },
+  panels: { position: 'absolute', left: 12, right: 12, top: 22, bottom: 16, borderWidth: 1, borderColor: '#B9B9B9' },
   // 페이지를 두른 가는 선. 날짜 상자가 윗선에 걸쳐 있어서 머리말처럼 보임
-  frame: { position: 'absolute', left: theme.pageLeft - 8, right: 12, top: 43, bottom: 16, borderWidth: 1, borderColor: '#B9B9B9' },
+  frame: { position: 'absolute', left: 12, right: 12, top: 43, bottom: 16, borderWidth: 1, borderColor: '#B9B9B9' },
   dateDay: { fontFamily: font.serif, fontSize: 34, lineHeight: 40, color: '#2B2B2B', minWidth: 22, textAlign: 'center' },
   dateRule: { width: 1, alignSelf: 'stretch', backgroundColor: '#2B2B2B', opacity: 0.35, marginHorizontal: 11 },
   dateMonth: { fontFamily: font.bold, fontSize: 11, letterSpacing: 2.4, color: '#2B2B2B' },
   dateDow: { fontFamily: font.regular, fontSize: 10, letterSpacing: 2, color: '#8A8A8A', marginTop: 3 },
-  badge: { position: 'absolute', left: 52, bottom: 24, minHeight: 36, paddingHorizontal: 10, justifyContent: 'center' },
+  badge: { position: 'absolute', left: 20, bottom: 24, minHeight: 36, paddingHorizontal: 10, justifyContent: 'center' },
   badgeText: { fontFamily: font.regular, fontSize: 15, color: '#A8A8A8' },
   area: { flex: 1, marginTop: 24, paddingLeft: theme.pageLeft, paddingRight: 16 },
   input: {
@@ -404,7 +404,7 @@ const s = StyleSheet.create({
   },
   penBar: {
     zIndex: 5, elevation: 5, position: 'relative',
-    gap: 6, paddingLeft: 54, paddingRight: 12, paddingTop: 8, paddingBottom: 14,
+    gap: 6, paddingLeft: 12, paddingRight: 12, paddingTop: 8, paddingBottom: 14,
     borderTopWidth: 1, borderTopColor: '#E4E4E4', backgroundColor: color.paper,
   },
   penRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -421,7 +421,7 @@ const s = StyleSheet.create({
   doneText: { fontFamily: font.bold, fontSize: 19, color: color.text },
   eraserHint: { flex: 1, fontFamily: font.regular, fontSize: 17, color: color.textSoft },
   editBar: {
-    flexDirection: 'row', gap: 6, paddingLeft: 54, paddingRight: 12, paddingTop: 8, paddingBottom: 14,
+    flexDirection: 'row', gap: 6, paddingLeft: 12, paddingRight: 12, paddingTop: 8, paddingBottom: 14,
     borderTopWidth: 1, borderTopColor: '#E4E4E4', backgroundColor: color.paper,
   },
   editBtn: { flex: 1, minHeight: 60, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: color.accentSoft },

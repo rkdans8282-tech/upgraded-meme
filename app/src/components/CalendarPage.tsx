@@ -101,12 +101,12 @@ export const CalendarPage = memo(CalendarPageBase);
 const LINE = '#DCDCDC';
 const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: color.paper, overflow: 'hidden' },
-  head: { flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingLeft: 52, paddingRight: 12, paddingTop: 10 },
+  head: { flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingLeft: 10, paddingRight: 10, paddingTop: 10 },
   month: { fontFamily: font.bold, fontSize: 24, color: color.text },
   year: { fontFamily: font.regular, fontSize: 16, color: color.textSoft },
   notebook: { fontFamily: font.bold, fontSize: 14, color: color.text, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: color.accentSoft, overflow: 'hidden' },
   shelf: { fontFamily: font.regular, fontSize: 14, color: color.textSoft, paddingHorizontal: 4 },
-  grid: { flex: 1, marginLeft: 50, marginRight: 8, marginTop: 6, marginBottom: 10, borderTopWidth: 1, borderLeftWidth: 1, borderColor: LINE },
+  grid: { flex: 1, marginLeft: 8, marginRight: 8, marginTop: 6, marginBottom: 10, borderTopWidth: 1, borderLeftWidth: 1, borderColor: LINE },
   row: { flexDirection: 'row' },
   week: { flex: 1 },
   dow: { flex: 1, textAlign: 'center', fontFamily: font.bold, fontSize: 14, color: color.textSoft, paddingVertical: 4, borderRightWidth: 1, borderBottomWidth: 1, borderColor: LINE },

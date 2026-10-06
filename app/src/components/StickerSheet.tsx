@@ -4,7 +4,7 @@ import { CATEGORY_LABELS, STICKERS, categories } from '../stickers';
 import { theme } from '../theme';
 
 const { color, font } = theme;
-const LEFT = 54; // 스프링에 가려지지 않게 비워두는 왼쪽 여백
+const LEFT = 16; // 왼쪽 여백
 
 // 스티커 고르기: 아래에서 올라오는 판 (분류 칩 + 스티커 칸)
 export function StickerSheet({ initialCat, onPick, onClose }: { initialCat?: string; onPick: (key: string) => void; onClose: () => void }) {

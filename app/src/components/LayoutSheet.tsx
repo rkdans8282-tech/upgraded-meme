@@ -3,7 +3,7 @@ import { LAYOUTS, Layout, segments } from '../layouts';
 import { theme } from '../theme';
 
 const { color, font } = theme;
-const LEFT = 54; // 스프링에 가려지지 않게 비워두는 왼쪽 여백
+const LEFT = 16; // 왼쪽 여백
 
 // 칸 나누기 모양 고르기: 아래에서 올라오는 판
 export function LayoutSheet({ current, onPick, onClose }: { current: Layout; onPick: (l: Layout) => void; onClose: () => void }) {
