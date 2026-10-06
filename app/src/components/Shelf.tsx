@@ -53,7 +53,9 @@ export function Shelf({ diaries, slots, onOpen, onAdd, onEdit, onDelete }: Props
   return (
     <SafeAreaView style={s.root}>
       <View style={s.head}>
-        <Text style={s.title}>My Diaries</Text>
+        <Text style={s.title}>
+          My <Text style={s.titleKo}>다이어리</Text>
+        </Text>
         <Text style={s.sub}>{diaries.length}권 · 무료 1권{slots > 1 ? ` + 추가 ${slots - 1}권` : ''}</Text>
       </View>
       <ScrollView contentContainerStyle={{ paddingBottom: 40, alignItems: 'center' }}>
@@ -144,6 +146,7 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.color.desk },
   head: { paddingHorizontal: PAD + 4, paddingTop: 18, paddingBottom: 22 },
   title: { fontFamily: font.serif, fontSize: 30, color: theme.color.pink, letterSpacing: 1 },
+  titleKo: { fontFamily: font.bold, fontStyle: 'normal', fontSize: 26, letterSpacing: 0 },
   sub: { fontFamily: font.regular, fontSize: 13, color: '#8A8A8A', marginTop: 4 },
   row: { flexDirection: 'row', alignItems: 'flex-end' },
   book: { shadowColor: '#000', shadowOpacity: 0.6, shadowRadius: 6, shadowOffset: { width: 2, height: 4 }, elevation: 6 },
