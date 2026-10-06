@@ -24,9 +24,12 @@ type Props = {
   onScratch: () => void;
   onCalendar: (day: string) => void;
   onSave: () => void;
+  onShelf?: () => void; // 책장으로 돌아가기 (둥근 리모컨 메뉴)
   pageLabel?: string; // 공책 쪽 번호 ('12 / 300')
   onIndex?: () => void; // 쪽 번호를 누르면 목록 열기
   title?: string; // 날짜 칸을 확대한 화면에서만 왼쪽 위에 작게 보이는 날짜
+  transparent?: boolean; // 표지 꾸미기: 종이 배경 없이 위에 스티커·손글씨만 올림 (글상자도 없음)
+  remoteItems?: RemoteKey[];
   holes: number; // 스프링 구멍 개수 (책 겉 스프링과 같은 값)
 };
 
@@ -35,7 +38,7 @@ const NO_STICKERS: Sticker[] = [];
 const NO_STROKES: Stroke[] = [];
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
-function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch, onCalendar, onSave, pageLabel, onIndex, title, holes }: Props) {
+function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch, onCalendar, onSave, onShelf, pageLabel, onIndex, title, transparent, remoteItems, holes }: Props) {
   const [areaH, setAreaH] = useState(300);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [sheet, setSheet] = useState(false);
@@ -133,6 +136,7 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
     else if (k === 'tape') openSheet('tape');
     else if (k === 'photo') addPhoto();
     else if (k === 'save') onSave();
+    else if (k === 'shelf') onShelf?.();
     else onCalendar(dayKey);
   };
 
@@ -141,11 +145,11 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
   const showRemote = !drawing && !selected && !sheet && !cutting;
 
   return (
-    <View style={s.page} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+    <View style={[s.page, transparent && { backgroundColor: 'transparent' }]} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       <PageHoles holes={holes} />
       {title ? <Text style={s.title} pointerEvents="none">{title}</Text> : null}
 
-      <ScrollView style={[s.area, title ? { marginTop: 56 } : null]} onLayout={(e) => setAreaH(e.nativeEvent.layout.height)} keyboardShouldPersistTaps="handled">
+      {!transparent && <ScrollView style={[s.area, title ? { marginTop: 56 } : null]} onLayout={(e) => setAreaH(e.nativeEvent.layout.height)} keyboardShouldPersistTaps="handled">
         <View style={{ height: total }}>
           <TextInput
             style={[s.input, { minHeight: areaH }]}
@@ -162,7 +166,7 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
             textAlignVertical="top"
           />
         </View>
-      </ScrollView>
+      </ScrollView>}
 
       {/* 손글씨 층: 펜 모드일 때만 터치를 받음. 도구 막대보다 아래 층이라 막대는 항상 눌림 */}
       <InkLayer
@@ -260,7 +264,7 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
         </Pressable>
       ) : null}
 
-      {showRemote && <RemoteMenu items={['pen', 'sticker', 'photo', 'tape', 'calendar', 'save']} onPick={onRemote} />}
+      {showRemote && <RemoteMenu items={remoteItems ?? (onShelf ? ['pen', 'sticker', 'photo', 'tape', 'calendar', 'save', 'shelf'] : ['pen', 'sticker', 'photo', 'tape', 'calendar', 'save'])} onPick={onRemote} />}
 
       {cutting && selected?.photo && (
         <CutoutModal photo={selected.photo} imgAspect={selected.imgAspect ?? 1} onDone={applyCut} onClose={() => setCutting(false)} />

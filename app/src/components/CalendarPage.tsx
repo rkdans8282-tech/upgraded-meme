@@ -17,6 +17,7 @@ type Props = {
   holes: number;
   pageAspect: number; // 일기 종이의 가로/세로 (미리보기 모양을 맞추려고)
   onPick: (day: string, pageX: number, pageY: number) => void;
+  onShelf: () => void;
 };
 
 // 칸 안에 그날의 글·그림·스티커를 작게 보여줌 (종이 모양 그대로 줄여서)
@@ -37,7 +38,7 @@ export function Mini({ e, aspect, inset = 18 }: { e: Entry; aspect: number; inse
 }
 
 // 월간 달력 쪽: 날짜 칸을 누르면 그 칸이 확대되면서 그날의 종이가 열림
-function CalendarPageBase({ monthKey, entries, today, holes, pageAspect, onPick }: Props) {
+function CalendarPageBase({ monthKey, entries, today, holes, pageAspect, onPick, onShelf }: Props) {
   const [y, m] = monthKey.slice(4).split('-').map(Number);
   const lead = new Date(y, m - 1, 1).getDay();
   const count = new Date(y, m, 0).getDate();
@@ -51,6 +52,10 @@ function CalendarPageBase({ monthKey, entries, today, holes, pageAspect, onPick 
       <View style={s.head}>
         <Text style={s.month}>{m}월</Text>
         <Text style={s.year}>{y}</Text>
+        <View style={{ flex: 1 }} />
+        <Pressable onPress={onShelf} hitSlop={8} accessibilityRole="button" accessibilityLabel="책장으로 돌아가기">
+          <Text style={s.shelf}>책장</Text>
+        </Pressable>
       </View>
       <View style={s.grid}>
         <View style={s.row}>
@@ -95,6 +100,7 @@ const s = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingLeft: 52, paddingRight: 12, paddingTop: 10 },
   month: { fontFamily: font.bold, fontSize: 24, color: color.text },
   year: { fontFamily: font.regular, fontSize: 16, color: color.textSoft },
+  shelf: { fontFamily: font.regular, fontSize: 14, color: color.textSoft, paddingHorizontal: 4 },
   grid: { flex: 1, marginLeft: 50, marginRight: 8, marginTop: 6, marginBottom: 10, borderTopWidth: 1, borderLeftWidth: 1, borderColor: LINE },
   row: { flexDirection: 'row' },
   week: { flex: 1 },

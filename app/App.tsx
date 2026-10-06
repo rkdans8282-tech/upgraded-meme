@@ -1,231 +1,71 @@
-import { useCallback, useRef, useState } from 'react';
-import { Animated, Easing, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { Gaegu_400Regular, Gaegu_700Bold } from '@expo-google-fonts/gaegu';
 import { PlayfairDisplay_400Regular_Italic } from '@expo-google-fonts/playfair-display';
 import { IBMPlexSansKR_400Regular, IBMPlexSansKR_600SemiBold } from '@expo-google-fonts/ibm-plex-sans-kr';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import FlipPager, { FLIP_SIGN } from './src/components/FlipPager';
-import { DiaryPage } from './src/components/DiaryPage';
-import { CalendarPage } from './src/components/CalendarPage';
-import { SLOT } from './src/components/PageHoles';
-import { Cover } from './src/components/Cover';
-import { PageIndex } from './src/components/PageIndex';
-import { MEMO_PAGES, calKeyOf, isCal, memoNo, neighbor } from './src/book';
-import { fromKey, todayKey } from './src/dates';
-import { useEntries } from './src/useEntries';
-import { useSounds } from './src/sounds';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { DiaryBook } from './src/DiaryBook';
+import { Shelf } from './src/components/Shelf';
+import { CoverEditor } from './src/components/CoverEditor';
+import { Paywall } from './src/components/Paywall';
+import { Diary, newDiary, useDiaries } from './src/diaries';
 import { theme } from './src/theme';
-import type { Sticker } from './src/stickers';
-import type { Stroke } from './src/strokes';
 
-const { color } = theme;
-const ZOOM_FROM = 0.14; // 날짜 칸이 확대되기 시작하는 크기
+type Screen = { name: 'shelf' } | { name: 'book'; id: string } | { name: 'edit'; draft: Diary; isNew: boolean };
 
+// 책장(내 다이어리 모음) ↔ 다이어리 한 권 ↔ 표지 꾸미기
 export default function App() {
   const [fontsLoaded] = useFonts({ Gaegu_400Regular, Gaegu_700Bold, PlayfairDisplay_400Regular_Italic, IBMPlexSansKR_400Regular, IBMPlexSansKR_600SemiBold });
-  const { entries, ready, update, flush } = useEntries();
-  const sounds = useSounds();
+  const { diaries, ready, slots, canAdd, add, update, remove, buySlot } = useDiaries();
+  const [screen, setScreen] = useState<Screen>({ name: 'shelf' });
+  const [paywall, setPaywall] = useState(false);
 
-  const today = todayKey();
-  const year = today.slice(0, 4);
-  const [page, setPage] = useState(calKeyOf(today)); // 지금 펼친 쪽: 'cal:YYYY-MM' 또는 'memo:N'
-  const [phase, setPhase] = useState<'cover' | 'opening' | 'book'>('cover');
-  const [box, setBox] = useState({ w: 0, h: 0 });
-  const coverAnim = useRef(new Animated.Value(0)).current;
-  const bookRef = useRef<View>(null);
+  if (!fontsLoaded || !ready) return <View style={{ flex: 1, backgroundColor: theme.color.desk }} />;
 
-  const holes = Math.max(6, Math.floor(box.h / 46)); // 두꺼운 스프링이 촘촘히
-
-  // 저장 버튼: 지금 바로 저장하고 잠깐 알려줌 (평소에도 쓰는 대로 자동 저장됨)
-  const [saved, setSaved] = useState(false);
-  const onSave = useCallback(async () => {
-    await flush();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1400);
-  }, [flush]);
-  const [indexOpen, setIndexOpen] = useState(false);
-  const openIndex = useCallback(() => setIndexOpen(true), []);
-
-  const animateCover = (to: 0 | 1, end: 'cover' | 'book') => {
-    sounds.flip();
-    setPhase('opening');
-    coverAnim.setValue(1 - to);
-    Animated.timing(coverAnim, { toValue: to, duration: 700, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }).start(
-      () => setPhase(end),
-    );
-  };
-
-  // 날짜 칸 확대: 누른 자리에서 종이가 커지며 열림
-  const [zoom, setZoom] = useState<{ day: string; px: number; py: number } | null>(null);
-  const zoomAnim = useRef(new Animated.Value(0)).current;
-  const openZoom = useCallback((day: string, pageX: number, pageY: number) => {
-    sounds.flip();
-    const start = (px: number, py: number) => {
-      zoomAnim.setValue(0);
-      setZoom({ day, px, py });
-      Animated.timing(zoomAnim, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-    };
-    if (bookRef.current) bookRef.current.measureInWindow((x, y) => start(pageX - x, pageY - y));
-    else start(box.w / 2, box.h / 2);
-  }, [sounds, zoomAnim, box]);
-  const closeZoom = useCallback(() => {
-    Animated.timing(zoomAnim, { toValue: 0, duration: 240, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => setZoom(null));
-  }, [zoomAnim]);
-
-  const onText = useCallback((d: string, text: string) => update(d, { text }), [update]);
-  const onStickers = useCallback((d: string, stickers: Sticker[]) => update(d, { stickers }), [update]);
-  const onStrokes = useCallback((d: string, strokes: Stroke[]) => update(d, { strokes }), [update]);
-  const goCalendar = useCallback(() => {
-    sounds.flip();
-    setPage(calKeyOf(todayKey()));
-  }, [sounds]);
-  const nav = useCallback((key: string, dir: 1 | -1) => neighbor(key, dir, year), [year]);
-
-  const renderPage = useCallback(
-    (key: string) =>
-      isCal(key) ? (
-        <CalendarPage monthKey={key} entries={entries} today={today} holes={holes} pageAspect={box.w / (box.h || 1)} onPick={openZoom} />
-      ) : (
-        <DiaryPage
-          dayKey={key}
-          entry={entries[key]}
-          onText={onText}
-          onStickers={onStickers}
-          onStrokes={onStrokes}
-          onScratch={sounds.scratch}
-          onCalendar={goCalendar}
-          onSave={onSave}
-          pageLabel={`${memoNo(key)} / ${MEMO_PAGES}`}
-          onIndex={openIndex}
-          holes={holes}
-        />
-      ),
-    [entries, today, onText, onStickers, onStrokes, sounds.scratch, goCalendar, openZoom, onSave, openIndex, holes, box],
-  );
-
-  if (!fontsLoaded || !ready) return <View style={{ flex: 1, backgroundColor: color.desk }} />;
-
-  const coverDeg = coverAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', `${FLIP_SIGN * 100}deg`] });
-  const zoomStyle = zoom && {
-    opacity: zoomAnim.interpolate({ inputRange: [0, 1], outputRange: [0.2, 1] }),
-    transform: [
-      { translateX: zoomAnim.interpolate({ inputRange: [0, 1], outputRange: [(1 - ZOOM_FROM) * (zoom.px - box.w / 2), 0] }) },
-      { translateY: zoomAnim.interpolate({ inputRange: [0, 1], outputRange: [(1 - ZOOM_FROM) * (zoom.py - box.h / 2), 0] }) },
-      { scale: zoomAnim.interpolate({ inputRange: [0, 1], outputRange: [ZOOM_FROM, 1] }) },
-    ],
-  };
-  const zoomTitle = zoom ? `${fromKey(zoom.day).getMonth() + 1}월 ${fromKey(zoom.day).getDate()}일` : '';
+  const startNew = () => setScreen({ name: 'edit', draft: newDiary(), isNew: true });
+  const book = screen.name === 'book' ? diaries.find((d) => d.id === screen.id) : undefined;
 
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <SafeAreaView style={s.desk}>
-        <KeyboardAvoidingView style={s.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={s.frame}>
-            <View ref={bookRef} collapsable={false} style={s.book} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-              {/* 책 두께(겹쳐진 종이 옆면) */}
-              <View style={[s.edge, { right: -3, bottom: -3, backgroundColor: '#E2E2E2' }]} />
-              <View style={[s.edge, { right: -1.5, bottom: -1.5, backgroundColor: color.paperEdge }]} />
-
-              <View style={[s.pageBox, s.shadow]}>
-                {phase !== 'cover' && box.w > 0 && (
-                  <FlipPager
-                    current={page}
-                    neighbor={nav}
-                    width={box.w}
-                    renderPage={renderPage}
-                    onChange={setPage}
-                    onFlipSound={sounds.flip}
-                  />
-                )}
-                {indexOpen && (
-                  <PageIndex
-                    entries={entries}
-                    aspect={box.w / (box.h || 1)}
-                    current={page}
-                    onPick={(k) => {
-                      sounds.flip();
-                      setPage(k);
-                      setIndexOpen(false);
-                    }}
-                    onClose={() => setIndexOpen(false)}
-                  />
-                )}
-                {zoom && (
-                  <Animated.View style={[StyleSheet.absoluteFill, s.zoomPage, zoomStyle]}>
-                    <DiaryPage
-                      dayKey={zoom.day}
-                      title={zoomTitle}
-                      entry={entries[zoom.day]}
-                      onText={onText}
-                      onStickers={onStickers}
-                      onStrokes={onStrokes}
-                      onScratch={sounds.scratch}
-                      onCalendar={closeZoom}
-                      onSave={onSave}
-                      holes={holes}
-                    />
-                  </Animated.View>
-                )}
-              </View>
-
-              {phase !== 'book' && (
-                <Animated.View
-                  style={[
-                    StyleSheet.absoluteFill,
-                    s.shadow,
-                    {
-                      transform: [{ perspective: 1400 }, { translateX: -box.w / 2 }, { rotateY: coverDeg }, { translateX: box.w / 2 }],
-                    },
-                  ]}
-                  pointerEvents={phase === 'cover' ? 'auto' : 'none'}
-                >
-                  <Cover onOpen={() => animateCover(1, 'book')} />
-                </Animated.View>
-              )}
-
-              {saved && (
-                <View style={s.toast} pointerEvents="none">
-                  <Text style={s.toastText}>저장됐어요 ✓</Text>
-                </View>
-              )}
-
-              {/* 스프링 (흰 링) */}
-              <View style={s.rings} pointerEvents="none">
-                {Array.from({ length: holes }, (_, i) => (
-                  <View key={i} style={s.ringSlot}>
-                    <View style={s.ring}>
-                      <View style={s.ringShine} />
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+      {screen.name === 'edit' ? (
+        <CoverEditor
+          key={screen.draft.id}
+          initial={screen.draft}
+          isNew={screen.isNew}
+          onCancel={() => setScreen({ name: 'shelf' })}
+          onSave={(d) => {
+            if (screen.isNew) add(d);
+            else update(d.id, d);
+            setScreen({ name: 'shelf' });
+          }}
+        />
+      ) : book ? (
+        <DiaryBook key={book.id} diary={book} onBack={() => setScreen({ name: 'shelf' })} />
+      ) : (
+        <Shelf
+          diaries={diaries}
+          slots={slots}
+          onOpen={(id) => setScreen({ name: 'book', id })}
+          onAdd={() => (canAdd ? startNew() : setPaywall(true))}
+          onEdit={(id) => {
+            const d = diaries.find((x) => x.id === id);
+            if (d) setScreen({ name: 'edit', draft: d, isNew: false });
+          }}
+          onDelete={remove}
+        />
+      )}
+      <Paywall
+        visible={paywall}
+        onClose={() => setPaywall(false)}
+        onBuy={async () => {
+          await buySlot();
+          setPaywall(false);
+          startNew();
+        }}
+      />
     </SafeAreaProvider>
   );
 }
-
-const s = StyleSheet.create({
-  fill: { flex: 1 },
-  desk: { flex: 1, backgroundColor: color.desk },
-  frame: { flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center', paddingLeft: 34, paddingRight: 18, paddingVertical: 18 },
-  book: { flex: 1 },
-  edge: { position: 'absolute', left: 3, top: 3, borderRadius: 0 },
-  pageBox: { ...StyleSheet.absoluteFill, backgroundColor: color.paper },
-  toast: { position: 'absolute', top: 18, alignSelf: 'center', backgroundColor: 'rgba(20,20,20,0.88)', paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999 },
-  toastText: { fontFamily: theme.font.bold, fontSize: 17, color: '#fff' },
-  zoomPage: { backgroundColor: color.paper },
-  shadow: { shadowColor: '#3b3326', shadowOpacity: 0.2, shadowRadius: 5, shadowOffset: { width: 1, height: 2 }, elevation: 4 },
-  rings: { position: 'absolute', left: -28, top: 0, bottom: 0, width: 66, justifyContent: 'space-around' },
-  ringSlot: { height: SLOT, justifyContent: 'center' },
-  ring: {
-    width: 66, height: 15, borderRadius: 8, backgroundColor: color.coil, borderWidth: 1, borderColor: color.coilEdge,
-    shadowColor: '#3b3326', shadowOpacity: 0.28, shadowRadius: 2.5, shadowOffset: { width: 1, height: 2 }, elevation: 3,
-  },
-  ringShine: { position: 'absolute', bottom: 2, left: 8, right: 8, height: 2, borderRadius: 1, backgroundColor: '#E8E8E8' },
-});
