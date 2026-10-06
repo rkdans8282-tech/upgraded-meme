@@ -8,6 +8,9 @@ export type Sticker = {
   y: number; // 가운데 세로 위치 (0~1)
   scale: number; // 크기 배율 (기본 1)
   rot: number; // 기울기(도)
+  photo?: string; // 사진 스티커: 'file:<이름>.jpg'(앱 문서 폴더/photos) 또는 웹의 data URI. 이때 key는 ''
+  aspect?: number; // 화면에 보이는 가로/세로 비율
+  imgAspect?: number; // 원본 사진 가로/세로 비율
 };
 
 export const BASE_SIZE = 0.26; // 배율 1일 때 스티커 너비 = 쪽 너비의 26%

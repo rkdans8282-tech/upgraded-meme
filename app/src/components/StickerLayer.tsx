@@ -1,6 +1,7 @@
 import { memo, useMemo, useRef, useState } from 'react';
 import { Image, PanResponder, StyleSheet, View } from 'react-native';
 import { BASE_SIZE, SCALE_MAX, SCALE_MIN, Sticker, stickerSource } from '../stickers';
+import { photoUri } from '../photos';
 import { theme } from '../theme';
 
 type Pose = Pick<Sticker, 'x' | 'y' | 'scale' | 'rot'>;
@@ -69,19 +70,26 @@ function StickerItem({ s, selected, pageW, pageH, onSelect, onCommit }: ItemProp
     if (p.x !== st.x || p.y !== st.y || p.scale !== st.scale || p.rot !== st.rot) commit({ ...st, ...p });
   }
 
-  const src = stickerSource(s.key);
+  const src = s.photo ? { uri: photoUri(s.photo) } : stickerSource(s.key);
   if (!src) return null;
   const size = pageW * BASE_SIZE * cur.scale;
+  const height = s.photo ? size / (s.aspect ?? 1) : size;
   return (
     <View
       {...pan.panHandlers}
       style={[
         st.item,
-        { width: size, height: size, left: cur.x * pageW - size / 2, top: cur.y * pageH - size / 2, transform: [{ rotate: `${cur.rot}deg` }] },
+        { width: size, height, left: cur.x * pageW - size / 2, top: cur.y * pageH - size / 2, transform: [{ rotate: `${cur.rot}deg` }] },
         selected && st.selected,
       ]}
     >
-      <Image source={src} style={st.img} resizeMode="contain" />
+      {s.photo ? (
+        <View style={st.photoFrame}>
+          <Image source={src} style={st.img} resizeMode="cover" />
+        </View>
+      ) : (
+        <Image source={src} style={st.img} resizeMode="contain" />
+      )}
     </View>
   );
 }
@@ -111,4 +119,5 @@ const st = StyleSheet.create({
   item: { position: 'absolute', borderRadius: 12 },
   selected: { borderWidth: 2, borderStyle: 'dashed', borderColor: theme.color.accent, backgroundColor: 'rgba(217,190,148,0.12)' },
   img: { width: '100%', height: '100%' },
+  photoFrame: { flex: 1, borderWidth: 5, borderColor: '#fff', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.18)' },
 });

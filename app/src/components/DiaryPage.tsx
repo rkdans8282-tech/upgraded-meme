@@ -8,6 +8,7 @@ import { SCALE_MAX, SCALE_MIN, Sticker, newId } from '../stickers';
 import { PEN_COLORS, Stroke, Tool, WIDTHS } from '../strokes';
 import { Mood, moods } from '../moods';
 import { labelOf } from '../dates';
+import { pickPhoto } from '../photos';
 import { theme } from '../theme';
 import type { Entry } from '../storage';
 
@@ -69,6 +70,19 @@ function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onStickers, onS
     apply([...stickers, st]);
     setSelectedId(st.id);
     setSheet(false);
+  };
+  const addPhoto = async () => {
+    Keyboard.dismiss();
+    try {
+      const p = await pickPhoto();
+      if (!p) return;
+      const st: Sticker = {
+        id: newId(), key: '', photo: p.photo, aspect: p.imgAspect, imgAspect: p.imgAspect,
+        x: 0.5, y: 0.42, scale: 1.7, rot: Math.round((Math.random() - 0.5) * 8),
+      };
+      apply([...stickers, st]);
+      setSelectedId(st.id);
+    } catch {}
   };
   const openSheet = () => {
     Keyboard.dismiss();
@@ -237,8 +251,11 @@ function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onStickers, onS
             <Pressable onPress={startDrawing} style={s.penBtn} accessibilityRole="button" accessibilityLabel="펜으로 쓰기">
               <Text style={s.stickerBtnText}>✏️ 펜</Text>
             </Pressable>
+            <Pressable onPress={addPhoto} style={s.penBtn} accessibilityRole="button" accessibilityLabel="사진 넣기">
+              <Text style={s.stickerBtnText}>🖼 사진</Text>
+            </Pressable>
             <Pressable onPress={undo} disabled={undoCount === 0} style={[s.undoBtn, undoCount === 0 && { opacity: 0.35 }]} accessibilityRole="button" accessibilityLabel="스티커 되돌리기">
-              <Text style={s.undoText}>↩︎ 되돌리기</Text>
+              <Text style={s.undoText}>↩︎</Text>
             </Pressable>
           </View>
           <View style={s.navRow}>
@@ -317,10 +334,10 @@ const s = StyleSheet.create({
     padding: 0, margin: 0, includeFontPadding: false,
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
   },
-  toolRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
-  stickerBtn: { minHeight: theme.minTouch, justifyContent: 'center', paddingHorizontal: 14, borderRadius: theme.radius.pill, backgroundColor: color.accent },
-  stickerBtnText: { fontFamily: font.bold, fontSize: 21, color: color.text },
-  penBtn: { minHeight: theme.minTouch, justifyContent: 'center', paddingHorizontal: 14, borderRadius: theme.radius.pill, backgroundColor: color.accentSoft },
+  toolRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+  stickerBtn: { minHeight: theme.minTouch, justifyContent: 'center', paddingHorizontal: 10, borderRadius: theme.radius.pill, backgroundColor: color.accent },
+  stickerBtnText: { fontFamily: font.bold, fontSize: 19, color: color.text },
+  penBtn: { minHeight: theme.minTouch, justifyContent: 'center', paddingHorizontal: 10, borderRadius: theme.radius.pill, backgroundColor: color.accentSoft },
   penBar: {
     zIndex: 5, elevation: 5, position: 'relative',
     gap: 6, paddingLeft: 54, paddingRight: 12, paddingTop: 8, paddingBottom: 14,
@@ -338,7 +355,7 @@ const s = StyleSheet.create({
   widthDot: { width: '100%', borderRadius: 6 },
   doneBtn: { minHeight: theme.minTouch, minWidth: 104, paddingHorizontal: 12, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: theme.radius.pill, backgroundColor: color.accent },
   eraserHint: { flex: 1, fontFamily: font.regular, fontSize: 17, color: color.textSoft },
-  undoBtn: { minHeight: theme.minTouch, justifyContent: 'center', paddingHorizontal: 6 },
+  undoBtn: { minHeight: theme.minTouch, minWidth: theme.minTouch, alignItems: 'center', justifyContent: 'center', marginLeft: 'auto' },
   undoText: { fontFamily: font.bold, fontSize: 17, color: color.textSoft },
   editBar: {
     flexDirection: 'row', gap: 6, paddingLeft: 54, paddingRight: 12, paddingTop: 8, paddingBottom: 14,
