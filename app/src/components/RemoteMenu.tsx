@@ -4,11 +4,11 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { theme } from '../theme';
 
 const { color, font } = theme;
-const R = 140; // 버튼 중심에서 항목까지 거리
-const ITEM = 54;
+const R = 165; // 버튼 중심에서 항목까지 거리
+const ITEM = 50;
 const FAB = 56;
 
-export type RemoteKey = 'pen' | 'sticker' | 'photo' | 'tape' | 'calendar';
+export type RemoteKey = 'pen' | 'sticker' | 'photo' | 'tape' | 'calendar' | 'save';
 
 const icon = (k: RemoteKey): ReactNode => {
   const p = { stroke: color.text, strokeWidth: 1.8, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
@@ -21,12 +21,14 @@ const icon = (k: RemoteKey): ReactNode => {
       return (<><Rect x={3} y={5} width={18} height={14} rx={2} {...p} /><Circle cx={9} cy={10} r={1.6} {...p} /><Path d="M4 18l5-5 4 4 3-3 4 4" {...p} /></>);
     case 'tape':
       return (<Path d="M3 8l2 1.5L3 11l2 1.5L3 14l2 1.5L3 17h18l-2-1.5L21 14l-2-1.5L21 11l-2-1.5L21 8z" {...p} />);
+    case 'save':
+      return (<><Path d="M5 4h12l3 3v13H5z" {...p} /><Path d="M8 4v5h7V4M8 20v-6h8v6" {...p} /></>);
     case 'calendar':
       return (<><Rect x={4} y={6} width={16} height={14} rx={2} {...p} /><Path d="M4 11h16M9 4v4M15 4v4" {...p} /></>);
   }
 };
 
-const LABELS: Record<RemoteKey, string> = { pen: '펜', sticker: '스티커', photo: '사진', tape: '테이프', calendar: '달력' };
+const LABELS: Record<RemoteKey, string> = { pen: '펜', sticker: '스티커', photo: '사진', tape: '테이프', calendar: '달력', save: '저장' };
 
 type Props = { items: RemoteKey[]; onPick: (k: RemoteKey) => void };
 

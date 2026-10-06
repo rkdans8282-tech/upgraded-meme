@@ -20,11 +20,11 @@ type Props = {
 };
 
 // 칸 안에 그날의 글·그림·스티커를 작게 보여줌 (종이 모양 그대로 줄여서)
-function Mini({ e, aspect }: { e: Entry; aspect: number }) {
+export function Mini({ e, aspect, inset = 18 }: { e: Entry; aspect: number; inset?: number }) {
   const [sz, setSz] = useState({ w: 0, h: 0 });
   const w = Math.min(sz.w, sz.h * aspect), h = w / aspect;
   return (
-    <View style={s.mini} onLayout={(ev) => setSz({ w: ev.nativeEvent.layout.width, h: ev.nativeEvent.layout.height })} pointerEvents="none">
+    <View style={[s.mini, { top: inset }]} onLayout={(ev) => setSz({ w: ev.nativeEvent.layout.width, h: ev.nativeEvent.layout.height })} pointerEvents="none">
       {w > 0 && (
         <View style={{ width: w, height: h, overflow: 'hidden' }}>
           {!!e.text && <Text style={s.miniText} numberOfLines={6}>{e.text}</Text>}

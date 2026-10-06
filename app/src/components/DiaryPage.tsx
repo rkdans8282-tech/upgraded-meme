@@ -23,6 +23,9 @@ type Props = {
   onStrokes: (day: string, strokes: Stroke[]) => void;
   onScratch: () => void;
   onCalendar: (day: string) => void;
+  onSave: () => void;
+  pageLabel?: string; // 공책 쪽 번호 ('12 / 300')
+  onIndex?: () => void; // 쪽 번호를 누르면 목록 열기
   title?: string; // 날짜 칸을 확대한 화면에서만 왼쪽 위에 작게 보이는 날짜
   holes: number; // 스프링 구멍 개수 (책 겉 스프링과 같은 값)
 };
@@ -32,7 +35,7 @@ const NO_STICKERS: Sticker[] = [];
 const NO_STROKES: Stroke[] = [];
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
-function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch, onCalendar, title, holes }: Props) {
+function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch, onCalendar, onSave, pageLabel, onIndex, title, holes }: Props) {
   const [areaH, setAreaH] = useState(300);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [sheet, setSheet] = useState(false);
@@ -129,6 +132,7 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
     else if (k === 'sticker') openSheet(undefined);
     else if (k === 'tape') openSheet('tape');
     else if (k === 'photo') addPhoto();
+    else if (k === 'save') onSave();
     else onCalendar(dayKey);
   };
 
@@ -240,7 +244,13 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
         <StickerLayer stickers={stickers} selectedId={selectedId} pageW={box.w} pageH={box.h} onSelect={setSelectedId} onCommit={commit} />
       </View>
 
-      {showRemote && <RemoteMenu items={['pen', 'sticker', 'photo', 'tape', 'calendar']} onPick={onRemote} />}
+      {showRemote && pageLabel ? (
+        <Pressable onPress={onIndex} style={s.badge} accessibilityRole="button" accessibilityLabel="공책 목록 열기">
+          <Text style={s.badgeText}>{pageLabel}</Text>
+        </Pressable>
+      ) : null}
+
+      {showRemote && <RemoteMenu items={['pen', 'sticker', 'photo', 'tape', 'calendar', 'save']} onPick={onRemote} />}
 
       {cutting && selected?.photo && (
         <CutoutModal photo={selected.photo} imgAspect={selected.imgAspect ?? 1} onDone={applyCut} onClose={() => setCutting(false)} />
@@ -270,10 +280,12 @@ export const DiaryPage = memo(DiaryPageBase);
 
 const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: color.paper, overflow: 'hidden' },
+  badge: { position: 'absolute', left: 52, bottom: 24, minHeight: 36, paddingHorizontal: 10, justifyContent: 'center' },
+  badgeText: { fontFamily: font.regular, fontSize: 15, color: '#A8A8A8' },
   title: { position: 'absolute', left: theme.pageLeft, top: 14, fontFamily: font.bold, fontSize: 26, color: color.text },
   area: { flex: 1, marginTop: 24, paddingLeft: theme.pageLeft, paddingRight: 16 },
   input: {
-    fontFamily: font.regular, fontSize: 23, lineHeight: LINE, color: color.text,
+    fontFamily: font.note, fontSize: 23, lineHeight: LINE, color: color.text,
     padding: 0, margin: 0, includeFontPadding: false,
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
   },

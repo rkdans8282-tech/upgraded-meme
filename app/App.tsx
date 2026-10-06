@@ -1,16 +1,18 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { Animated, Easing, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { Gaegu_400Regular, Gaegu_700Bold } from '@expo-google-fonts/gaegu';
 import { PlayfairDisplay_400Regular_Italic } from '@expo-google-fonts/playfair-display';
+import { IBMPlexSansKR_400Regular, IBMPlexSansKR_600SemiBold } from '@expo-google-fonts/ibm-plex-sans-kr';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import FlipPager, { FLIP_SIGN } from './src/components/FlipPager';
 import { DiaryPage } from './src/components/DiaryPage';
 import { CalendarPage } from './src/components/CalendarPage';
 import { SLOT } from './src/components/PageHoles';
 import { Cover } from './src/components/Cover';
-import { calKeyOf, isCal, memoNo, neighbor } from './src/book';
+import { PageIndex } from './src/components/PageIndex';
+import { MEMO_PAGES, calKeyOf, isCal, memoNo, neighbor } from './src/book';
 import { fromKey, todayKey } from './src/dates';
 import { useEntries } from './src/useEntries';
 import { useSounds } from './src/sounds';
@@ -22,8 +24,8 @@ const { color } = theme;
 const ZOOM_FROM = 0.14; // 날짜 칸이 확대되기 시작하는 크기
 
 export default function App() {
-  const [fontsLoaded] = useFonts({ Gaegu_400Regular, Gaegu_700Bold, PlayfairDisplay_400Regular_Italic });
-  const { entries, ready, update } = useEntries();
+  const [fontsLoaded] = useFonts({ Gaegu_400Regular, Gaegu_700Bold, PlayfairDisplay_400Regular_Italic, IBMPlexSansKR_400Regular, IBMPlexSansKR_600SemiBold });
+  const { entries, ready, update, flush } = useEntries();
   const sounds = useSounds();
 
   const today = todayKey();
@@ -36,15 +38,15 @@ export default function App() {
 
   const holes = Math.max(6, Math.floor(box.h / 46)); // 두꺼운 스프링이 촘촘히
 
-  // 내용이 있는 가장 뒤쪽 메모 번호 (그 뒤에 빈 쪽이 하나 더 이어짐)
-  const memoMax = useMemo(() => {
-    let max = 0;
-    for (const k of Object.keys(entries)) {
-      const e = entries[k];
-      if (k.startsWith('memo:') && (e.text || e.stickers?.length || e.strokes?.length)) max = Math.max(max, memoNo(k));
-    }
-    return max;
-  }, [entries]);
+  // 저장 버튼: 지금 바로 저장하고 잠깐 알려줌 (평소에도 쓰는 대로 자동 저장됨)
+  const [saved, setSaved] = useState(false);
+  const onSave = useCallback(async () => {
+    await flush();
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1400);
+  }, [flush]);
+  const [indexOpen, setIndexOpen] = useState(false);
+  const openIndex = useCallback(() => setIndexOpen(true), []);
 
   const animateCover = (to: 0 | 1, end: 'cover' | 'book') => {
     sounds.flip();
@@ -79,7 +81,7 @@ export default function App() {
     sounds.flip();
     setPage(calKeyOf(todayKey()));
   }, [sounds]);
-  const nav = useCallback((key: string, dir: 1 | -1) => neighbor(key, dir, year, memoMax), [year, memoMax]);
+  const nav = useCallback((key: string, dir: 1 | -1) => neighbor(key, dir, year), [year]);
 
   const renderPage = useCallback(
     (key: string) =>
@@ -94,10 +96,13 @@ export default function App() {
           onStrokes={onStrokes}
           onScratch={sounds.scratch}
           onCalendar={goCalendar}
+          onSave={onSave}
+          pageLabel={`${memoNo(key)} / ${MEMO_PAGES}`}
+          onIndex={openIndex}
           holes={holes}
         />
       ),
-    [entries, today, onText, onStickers, onStrokes, sounds.scratch, goCalendar, openZoom, holes, box],
+    [entries, today, onText, onStickers, onStrokes, sounds.scratch, goCalendar, openZoom, onSave, openIndex, holes, box],
   );
 
   if (!fontsLoaded || !ready) return <View style={{ flex: 1, backgroundColor: color.desk }} />;
@@ -135,6 +140,19 @@ export default function App() {
                     onFlipSound={sounds.flip}
                   />
                 )}
+                {indexOpen && (
+                  <PageIndex
+                    entries={entries}
+                    aspect={box.w / (box.h || 1)}
+                    current={page}
+                    onPick={(k) => {
+                      sounds.flip();
+                      setPage(k);
+                      setIndexOpen(false);
+                    }}
+                    onClose={() => setIndexOpen(false)}
+                  />
+                )}
                 {zoom && (
                   <Animated.View style={[StyleSheet.absoluteFill, s.zoomPage, zoomStyle]}>
                     <DiaryPage
@@ -146,6 +164,7 @@ export default function App() {
                       onStrokes={onStrokes}
                       onScratch={sounds.scratch}
                       onCalendar={closeZoom}
+                      onSave={onSave}
                       holes={holes}
                     />
                   </Animated.View>
@@ -165,6 +184,12 @@ export default function App() {
                 >
                   <Cover onOpen={() => animateCover(1, 'book')} />
                 </Animated.View>
+              )}
+
+              {saved && (
+                <View style={s.toast} pointerEvents="none">
+                  <Text style={s.toastText}>저장됐어요 ✓</Text>
+                </View>
               )}
 
               {/* 스프링 (흰 링) */}
@@ -192,6 +217,8 @@ const s = StyleSheet.create({
   book: { flex: 1 },
   edge: { position: 'absolute', left: 3, top: 3, borderRadius: 0 },
   pageBox: { ...StyleSheet.absoluteFill, backgroundColor: color.paper },
+  toast: { position: 'absolute', top: 18, alignSelf: 'center', backgroundColor: 'rgba(20,20,20,0.88)', paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999 },
+  toastText: { fontFamily: theme.font.bold, fontSize: 17, color: '#fff' },
   zoomPage: { backgroundColor: color.paper },
   shadow: { shadowColor: '#3b3326', shadowOpacity: 0.2, shadowRadius: 5, shadowOffset: { width: 1, height: 2 }, elevation: 4 },
   rings: { position: 'absolute', left: -28, top: 0, bottom: 0, width: 66, justifyContent: 'space-around' },

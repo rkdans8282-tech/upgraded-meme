@@ -17,7 +17,12 @@ export const theme = {
     coil: '#FFFFFF', // 스프링 (흰 링)
     coilEdge: '#D2D2D2',
   },
-  font: { regular: 'Gaegu_400Regular', bold: 'Gaegu_700Bold', serif: 'PlayfairDisplay_400Regular_Italic' },
+  font: {
+    regular: 'IBMPlexSansKR_400Regular', // 버튼·목록 등 화면 글씨 (반듯한 고딕)
+    bold: 'IBMPlexSansKR_600SemiBold',
+    note: 'Gaegu_400Regular', // 공책에 쓰는 글씨 (손글씨체)
+    serif: 'PlayfairDisplay_400Regular_Italic',
+  },
   radius: { pill: 999 },
   minTouch: 44,
   pageLeft: 80, // 속지 왼쪽 여백 (스프링 구멍 + 여백선 자리)
