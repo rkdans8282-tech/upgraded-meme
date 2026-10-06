@@ -197,7 +197,7 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
       {dateLabel ? <View style={s.frame} pointerEvents="none" /> : null}
       {dateLabel ? <DateTag dayKey={dateLabel} /> : null}
 
-      {!transparent && <ScrollView style={[s.area, dateLabel ? { marginTop: 92, paddingLeft: theme.pageLeft + 12, paddingRight: 24 } : null]} onLayout={(e) => setAreaH(e.nativeEvent.layout.height)} keyboardShouldPersistTaps="handled">
+      {!transparent && <ScrollView style={[s.area, dateLabel ? { marginTop: 92, paddingLeft: theme.pageLeft + 12, paddingRight: 24 } : null]} onLayout={(e) => setAreaH(e.nativeEvent.layout.height)} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <View style={{ height: total }}>
           <TextInput
             style={[s.input, { minHeight: areaH }]}

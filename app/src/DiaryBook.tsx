@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
-import { Animated, Easing, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FlipPager, { FLIP_SIGN } from './components/FlipPager';
@@ -35,6 +35,17 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
   const [box, setBox] = useState({ w: 0, h: 0 });
   const coverAnim = useRef(new Animated.Value(0)).current;
   const bookRef = useRef<View>(null);
+
+  // 키보드가 열려 있는 동안(글 쓰는 중)에는 밀어서 책장 넘기기를 끔
+  const [kbOpen, setKbOpen] = useState(false);
+  useEffect(() => {
+    const a = Keyboard.addListener('keyboardDidShow', () => setKbOpen(true));
+    const b = Keyboard.addListener('keyboardDidHide', () => setKbOpen(false));
+    return () => {
+      a.remove();
+      b.remove();
+    };
+  }, []);
 
   const holes = Math.max(6, Math.floor(box.h / 46)); // 두꺼운 스프링이 촘촘히
 
@@ -91,6 +102,7 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
     const cur = pageRef.current;
     if (k === cur) return;
     trail.current = [...trail.current.slice(-39), cur];
+    Keyboard.dismiss(); // 쪽을 옮기면 키보드는 닫음 (달력 위에 키보드가 남지 않게)
     setPage(k);
   }, []);
   const goCalendar = useCallback(() => {
@@ -175,6 +187,7 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
                     renderPage={renderPage}
                     onChange={go}
                     onFlipSound={sounds.flip}
+                    locked={kbOpen}
                   />
                 )}
                 {indexOpen && (
