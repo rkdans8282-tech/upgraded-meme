@@ -225,7 +225,17 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
           <EditBtn icon="－" label="작게" onPress={() => patchSelected((st) => ({ scale: clamp(st.scale * 0.85, SCALE_MIN, SCALE_MAX) }))} />
           <EditBtn icon="＋" label="크게" onPress={() => patchSelected((st) => ({ scale: clamp(st.scale * 1.18, SCALE_MIN, SCALE_MAX) }))} />
           {selected.photo && !isGif(selected.photo) && <EditBtn icon="✂️" label="오리기" onPress={() => setCutting(true)} />}
-          <EditBtn icon="⟳" label="회전" onPress={() => patchSelected((st) => ({ rot: st.rot + 15 }))} />
+          <View style={s.rotGroup}>
+            <View style={s.rotBtns}>
+              <Pressable onPress={() => patchSelected((st) => ({ rot: st.rot - 15 }))} accessibilityRole="button" accessibilityLabel="왼쪽으로 회전" style={s.rotBtn}>
+                <Text style={s.editIcon}>⟲</Text>
+              </Pressable>
+              <Pressable onPress={() => patchSelected((st) => ({ rot: st.rot + 15 }))} accessibilityRole="button" accessibilityLabel="오른쪽으로 회전" style={s.rotBtn}>
+                <Text style={s.editIcon}>⟳</Text>
+              </Pressable>
+            </View>
+            <Text style={s.editLabel}>회전</Text>
+          </View>
           <EditBtn icon="↩︎" label="되돌리기" disabled={undoCount === 0} onPress={undo} />
           <EditBtn
             icon="🗑"
@@ -313,6 +323,9 @@ const s = StyleSheet.create({
   },
   editBtn: { flex: 1, minHeight: 60, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: color.accentSoft },
   editBtnStrong: { backgroundColor: color.accent },
+  rotGroup: { flex: 1.7, minHeight: 60, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: color.accentSoft },
+  rotBtns: { flexDirection: 'row', width: '100%' },
+  rotBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 36 },
   editIcon: { fontSize: 22, color: color.text },
   editLabel: { fontFamily: font.bold, fontSize: 12, color: color.text },
 });

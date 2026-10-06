@@ -18,14 +18,18 @@ export async function pickPhoto(): Promise<PickedPhoto | null> {
   if (res.canceled || !res.assets[0]) return null;
   const a = res.assets[0];
   const gif = a.mimeType === 'image/gif' || /\.gif($|\?)/i.test(a.fileName ?? a.uri);
-  const dir = new Directory(Paths.document, 'photos');
+  // 앱(네이티브)에서만 쓰는 저장 폴더. 웹에는 문서 폴더가 없어서 필요할 때 만들어 씀
+  const photoDir = () => {
+    const dir = new Directory(Paths.document, 'photos');
+    dir.create({ idempotent: true });
+    return dir;
+  };
 
   if (gif) {
     const imgAspect = a.width && a.height ? a.width / a.height : 1;
     if (Platform.OS === 'web') return a.base64 ? { photo: `data:image/gif;base64,${a.base64}`, imgAspect } : null;
-    dir.create({ idempotent: true });
     const name = `${newId()}.gif`;
-    await new File(a.uri).copy(new File(dir, name));
+    await new File(a.uri).copy(new File(photoDir(), name));
     return { photo: PREFIX + name, imgAspect };
   }
 
@@ -37,9 +41,8 @@ export async function pickPhoto(): Promise<PickedPhoto | null> {
   });
   const imgAspect = out.width / out.height || 1;
   if (Platform.OS === 'web') return { photo: `data:image/jpeg;base64,${out.base64}`, imgAspect };
-  dir.create({ idempotent: true });
   const name = `${newId()}.jpg`;
-  await new File(out.uri).copy(new File(dir, name));
+  await new File(out.uri).copy(new File(photoDir(), name));
   return { photo: PREFIX + name, imgAspect };
 }
 
