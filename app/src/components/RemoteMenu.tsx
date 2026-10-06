@@ -1,0 +1,121 @@
+import { ReactNode, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import { theme } from '../theme';
+
+const { color, font } = theme;
+const R = 175; // 버튼 중심에서 항목까지 거리 (항목이 7개 이상이면 안쪽 R_IN, 바깥 R 두 줄로 놓음)
+const R_IN = 105;
+const ITEM = 46;
+const FAB = 56;
+
+export type RemoteKey = 'pen' | 'sticker' | 'photo' | 'tape' | 'calendar' | 'save' | 'shelf' | 'text' | 'layout';
+
+const icon = (k: RemoteKey): ReactNode => {
+  const p = { stroke: color.text, strokeWidth: 1.8, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
+  switch (k) {
+    case 'pen':
+      return (<><Path d="M4 20l1-5L16 4l4 4L9 19z" {...p} /><Path d="M14 6l4 4" {...p} /></>);
+    case 'sticker':
+      return (<><Path d="M5 4h14a1 1 0 011 1v9l-6 6H5a1 1 0 01-1-1V5a1 1 0 011-1z" {...p} /><Path d="M20 14h-5a1 1 0 00-1 1v5" {...p} /><Path d="M8.5 9v1M13.5 9v1M8.5 13c1 1 3 1 4 0" {...p} /></>);
+    case 'photo':
+      return (<><Rect x={3} y={5} width={18} height={14} rx={2} {...p} /><Circle cx={9} cy={10} r={1.6} {...p} /><Path d="M4 18l5-5 4 4 3-3 4 4" {...p} /></>);
+    case 'tape':
+      return (<Path d="M3 8l2 1.5L3 11l2 1.5L3 14l2 1.5L3 17h18l-2-1.5L21 14l-2-1.5L21 11l-2-1.5L21 8z" {...p} />);
+    case 'save':
+      return (<><Path d="M5 4h12l3 3v13H5z" {...p} /><Path d="M8 4v5h7V4M8 20v-6h8v6" {...p} /></>);
+    case 'text':
+      return (<><Path d="M5 6V4h14v2M12 4v16M9 20h6" {...p} /></>);
+    case 'layout':
+      return (<><Rect x={4} y={4} width={16} height={16} {...p} /><Path d="M12 4v16M4 12h16" {...p} /></>);
+    case 'shelf':
+      return (<Path d="M4 20V6h4v14M10 20V4h4v16M16 20V8l4 1v11M3 20h18" {...p} />);
+    case 'calendar':
+      return (<><Rect x={4} y={6} width={16} height={14} rx={2} {...p} /><Path d="M4 11h16M9 4v4M15 4v4" {...p} /></>);
+  }
+};
+
+const LABELS: Record<RemoteKey, string> = { pen: '펜', sticker: '스티커', photo: '사진', tape: '테이프', calendar: '달력', save: '저장', shelf: '책장', text: '글상자', layout: '칸 나누기' };
+
+type Props = { items: RemoteKey[]; onPick: (k: RemoteKey) => void };
+
+// 화면에 떠 있는 둥근 리모컨 버튼: 누르면 둥글게 펼쳐지는 메뉴 (아이폰 보조 터치처럼)
+export function RemoteMenu({ items, onPick }: Props) {
+  const [open, setOpen] = useState(false);
+  const a = useRef(new Animated.Value(0)).current;
+
+  const toggle = (to: boolean) => {
+    setOpen(to);
+    Animated.spring(a, { toValue: to ? 1 : 0, friction: 7, tension: 90, useNativeDriver: true }).start();
+  };
+
+  return (
+    <>
+      {open && <Pressable style={StyleSheet.absoluteFill} onPress={() => toggle(false)} accessibilityLabel="메뉴 닫기" />}
+      <View style={s.anchor} pointerEvents="box-none">
+        {items.map((k, i) => {
+          // 7개 이상이면 앞쪽 절반은 안쪽 줄, 나머지는 바깥 줄에 놓아 서로 겹치지 않게 함
+          const two = items.length > 6;
+          const split = Math.floor(items.length / 2);
+          const inner = two && i < split;
+          const ring = two ? (inner ? items.slice(0, split) : items.slice(split)) : items;
+          const j = two && !inner ? i - split : i;
+          const deg = 180 + (ring.length === 1 ? 45 : (90 * j) / (ring.length - 1)); // 왼쪽 → 위쪽
+          const rad = (deg * Math.PI) / 180;
+          const R0 = inner ? R_IN : R;
+          return (
+            <Animated.View
+              key={k}
+              pointerEvents={open ? 'auto' : 'none'}
+              style={[
+                s.item,
+                {
+                  opacity: a,
+                  transform: [
+                    { translateX: a.interpolate({ inputRange: [0, 1], outputRange: [0, Math.cos(rad) * R0] }) },
+                    { translateY: a.interpolate({ inputRange: [0, 1], outputRange: [0, Math.sin(rad) * R0] }) },
+                    { scale: a },
+                  ],
+                },
+              ]}
+            >
+              <Pressable
+                onPress={() => {
+                  toggle(false);
+                  onPick(k);
+                }}
+                style={s.itemBtn}
+                accessibilityRole="button"
+                accessibilityLabel={LABELS[k]}
+              >
+                <Svg width={22} height={22} viewBox="0 0 24 24">{icon(k)}</Svg>
+                <Text style={s.label}>{LABELS[k]}</Text>
+              </Pressable>
+            </Animated.View>
+          );
+        })}
+        <Pressable onPress={() => toggle(!open)} style={s.fab} accessibilityRole="button" accessibilityLabel="꾸미기 메뉴 열기">
+          <View style={s.fabRing}>
+            <View style={s.fabDot} />
+          </View>
+        </Pressable>
+      </View>
+    </>
+  );
+}
+
+const s = StyleSheet.create({
+  anchor: { position: 'absolute', right: 16, bottom: 20, width: FAB, height: FAB },
+  fab: {
+    width: FAB, height: FAB, borderRadius: FAB / 2, backgroundColor: 'rgba(70,60,50,0.82)', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 6,
+  },
+  fabRing: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center' },
+  fabDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.92)' },
+  item: { position: 'absolute', left: (FAB - ITEM) / 2, top: (FAB - ITEM) / 2, width: ITEM, height: ITEM },
+  itemBtn: {
+    width: ITEM, height: ITEM, borderRadius: ITEM / 2, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: '#E4E4E4', shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 5,
+  },
+  label: { fontFamily: font.bold, fontSize: 11, color: color.text, marginTop: -1 },
+});

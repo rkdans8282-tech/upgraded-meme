@@ -1,6 +1,8 @@
 import { memo, useMemo, useRef, useState } from 'react';
-import { Image, PanResponder, StyleSheet, View } from 'react-native';
-import { BASE_SIZE, SCALE_MAX, SCALE_MIN, Sticker, stickerSource } from '../stickers';
+import { Image, PanResponder, StyleSheet, Text, TextInput, View } from 'react-native';
+import Svg, { ClipPath, Defs, Image as SvgImage, Polygon } from 'react-native-svg';
+import { BASE_SIZE, SCALE_MAX, SCALE_MIN, Sticker, TEXT_WIDTH, stickerSource } from '../stickers';
+import { photoUri } from '../photos';
 import { theme } from '../theme';
 
 type Pose = Pick<Sticker, 'x' | 'y' | 'scale' | 'rot'>;
@@ -13,21 +15,25 @@ type ItemProps = {
   pageH: number;
   onSelect: (id: string) => void;
   onCommit: (next: Sticker) => void;
+  editing: boolean; // 글상자 글을 고치는 중이면 끌어서 옮기기를 끔
+  onEditText: (id: string, text: string) => void;
+  shift?: [number, number]; // 올가미로 묶어서 옮기는 중일 때 임시로 더해지는 이동량(쪽 크기 대비)
 };
 
 // 스티커 하나: 한 손가락 = 이동, 두 손가락 = 크기·회전
-function StickerItem({ s, selected, pageW, pageH, onSelect, onCommit }: ItemProps) {
+function StickerItem({ s, selected, pageW, pageH, onSelect, onCommit, editing, onEditText, shift }: ItemProps) {
   const [live, setLive] = useState<Pose | null>(null);
+  const [textH, setTextH] = useState(40);
   const cur: Pose = live ?? s;
-  const latest = useRef({ s, pageW, pageH, onSelect, onCommit });
-  latest.current = { s, pageW, pageH, onSelect, onCommit };
+  const latest = useRef({ s, pageW, pageH, onSelect, onCommit, editing });
+  latest.current = { s, pageW, pageH, onSelect, onCommit, editing };
   const g = useRef({ pose: cur as Pose, base: { x: s.x, y: s.y }, pinch: false, d0: 1, a0: 0, scale0: 1, rot0: 0 });
 
   const pan = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponder: () => !latest.current.editing,
+        onMoveShouldSetPanResponder: () => !latest.current.editing,
         onPanResponderTerminationRequest: () => false, // 책장 넘기기 제스처가 가로채지 못하게
         onPanResponderGrant: () => {
           const { s: st } = latest.current;
@@ -58,7 +64,6 @@ function StickerItem({ s, selected, pageW, pageH, onSelect, onCommit }: ItemProp
         onPanResponderRelease: () => finish(),
         onPanResponderTerminate: () => finish(),
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
@@ -69,20 +74,87 @@ function StickerItem({ s, selected, pageW, pageH, onSelect, onCommit }: ItemProp
     if (p.x !== st.x || p.y !== st.y || p.scale !== st.scale || p.rot !== st.rot) commit({ ...st, ...p });
   }
 
-  const src = stickerSource(s.key);
+  const sx = (shift?.[0] ?? 0) * pageW, sy = (shift?.[1] ?? 0) * pageH;
+  if (s.text !== undefined) {
+    const w = pageW * TEXT_WIDTH * cur.scale;
+    const fs = pageW * 0.052 * cur.scale;
+    const textStyle = [st.textBase, { fontSize: fs, lineHeight: fs * 1.3 }];
+    return (
+      <View
+        {...pan.panHandlers}
+        onLayout={(e) => setTextH(e.nativeEvent.layout.height)}
+        style={[
+          st.item,
+          { width: w, left: cur.x * pageW - w / 2 + sx, top: cur.y * pageH - textH / 2 + sy, transform: [{ rotate: `${cur.rot}deg` }], padding: 6 },
+          selected && st.selected,
+        ]}
+      >
+        {editing ? (
+          <TextInput
+            autoFocus
+            multiline
+            value={s.text}
+            onChangeText={(t) => onEditText(s.id, t)}
+            placeholder="글을 적어요"
+            placeholderTextColor="#B8B8B8"
+            selectionColor={theme.color.accent}
+            style={[textStyle, st.textInput]}
+            scrollEnabled={false}
+          />
+        ) : (
+          <Text style={textStyle}>{s.text || ' '}</Text>
+        )}
+      </View>
+    );
+  }
+
+  const src = s.photo ? { uri: photoUri(s.photo) } : stickerSource(s.key);
   if (!src) return null;
   const size = pageW * BASE_SIZE * cur.scale;
+  const height = s.photo ? size / (s.aspect ?? 1) : size;
   return (
     <View
       {...pan.panHandlers}
       style={[
         st.item,
-        { width: size, height: size, left: cur.x * pageW - size / 2, top: cur.y * pageH - size / 2, transform: [{ rotate: `${cur.rot}deg` }] },
+        { width: size, height, left: cur.x * pageW - size / 2 + sx, top: cur.y * pageH - size / 2 + sy, transform: [{ rotate: `${cur.rot}deg` }] },
         selected && st.selected,
       ]}
     >
-      <Image source={src} style={st.img} resizeMode="contain" />
+      {s.photo && s.cut ? (
+        <CutPhoto s={s} uri={photoUri(s.photo)} />
+      ) : s.photo ? (
+        <View style={st.photoFrame}>
+          <Image source={src} style={st.img} resizeMode="cover" />
+        </View>
+      ) : (
+        <Image source={src} style={st.img} resizeMode="contain" />
+      )}
     </View>
+  );
+}
+
+// 오린 사진: 흰 윤곽을 아래에 깔고, 그 위에 윤곽대로 자른 사진을 올림
+function CutPhoto({ s, uri }: { s: Sticker; uri: string }) {
+  const cut = s.cut!;
+  const [bx, by, bx1] = cut.box;
+  const bw = bx1 - bx;
+  const ia = s.imgAspect ?? 1;
+  const wv = 1000 / bw; // 사진 전체의 가상 너비 (경계 상자 너비 = 1000)
+  const hv = wv / ia;
+  const poly = cut.pts.reduce((a, v, i) => a + (i % 2 === 0 ? (i ? ' ' : '') + v * wv : ',' + v * hv), '');
+  const id = `clip-${s.id}`;
+  return (
+    <Svg width="100%" height="100%" viewBox={`${bx * wv} ${by * hv} 1000 ${1000 / (s.aspect ?? 1)}`}>
+      <Defs>
+        <ClipPath id={id}>
+          <Polygon points={poly} />
+        </ClipPath>
+      </Defs>
+      <Polygon points={poly} fill="#000" fillOpacity={0.14} stroke="#000" strokeOpacity={0.14} strokeWidth={22} strokeLinejoin="round" transform="translate(5 9)" />
+      <Polygon points={poly} fill="#fff" stroke="#fff" strokeWidth={22} strokeLinejoin="round" />
+      <SvgImage href={{ uri }} x={0} y={0} width={wv} height={hv} preserveAspectRatio="none" clipPath={`url(#${id})`} />
+    </Svg>
   );
 }
 
@@ -93,14 +165,30 @@ type LayerProps = {
   pageH: number;
   onSelect: (id: string) => void;
   onCommit: (next: Sticker) => void;
+  editingId?: string | null;
+  onEditText?: (id: string, text: string) => void;
+  drag?: { ids: string[]; dx: number; dy: number } | null; // 올가미로 묶어서 끌고 있는 중
 };
 
-function StickerLayerBase({ stickers, selectedId, pageW, pageH, onSelect, onCommit }: LayerProps) {
+const noopEdit = () => {};
+
+function StickerLayerBase({ stickers, selectedId, pageW, pageH, onSelect, onCommit, editingId, onEditText, drag }: LayerProps) {
   if (!pageW || !pageH) return null;
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       {stickers.map((s) => (
-        <StickerItem key={s.id} s={s} selected={s.id === selectedId} pageW={pageW} pageH={pageH} onSelect={onSelect} onCommit={onCommit} />
+        <StickerItem
+          key={s.id}
+          s={s}
+          selected={s.id === selectedId}
+          pageW={pageW}
+          pageH={pageH}
+          onSelect={onSelect}
+          onCommit={onCommit}
+          editing={s.id === editingId}
+          onEditText={onEditText ?? noopEdit}
+          shift={drag && drag.ids.includes(s.id) ? [drag.dx, drag.dy] : undefined}
+        />
       ))}
     </View>
   );
@@ -111,4 +199,7 @@ const st = StyleSheet.create({
   item: { position: 'absolute', borderRadius: 12 },
   selected: { borderWidth: 2, borderStyle: 'dashed', borderColor: theme.color.accent, backgroundColor: 'rgba(217,190,148,0.12)' },
   img: { width: '100%', height: '100%' },
+  textBase: { fontFamily: theme.font.note, color: '#2B2B2B' },
+  textInput: { padding: 0, margin: 0, ...({ outlineStyle: 'none' } as object) },
+  photoFrame: { flex: 1, borderWidth: 5, borderColor: '#fff', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.18)' },
 });

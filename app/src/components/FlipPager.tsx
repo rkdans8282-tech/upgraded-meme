@@ -1,6 +1,5 @@
 import { forwardRef, ReactNode, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, PanResponder, StyleSheet, View } from 'react-native';
-import { shiftKey } from '../dates';
 
 // 책장이 넘어가는 방향(회전 부호). 화면에서 책장이 앞으로 들리도록 맞춘 값.
 export const FLIP_SIGN = -1;
@@ -14,28 +13,29 @@ const outIn = input.map((p) => (Math.acos(p) * 180) / Math.PI); // 들어오는 
 export type FlipHandle = { flip: (dir: 1 | -1) => void };
 
 type Props = {
-  current: string; // 지금 보이는 날짜
-  max: string; // 이 날짜보다 미래로는 못 넘김 (오늘)
+  current: string; // 지금 보이는 쪽
+  neighbor: (key: string, dir: 1 | -1) => string | null; // 앞/뒤 쪽 (없으면 null)
   width: number;
   renderPage: (key: string) => ReactNode;
   onChange: (key: string) => void;
   onFlipSound: () => void;
+  locked?: boolean; // true면 책장 넘기기를 끔 (키보드로 글을 쓰는 동안 손가락이 살짝 움직여도 넘어가지 않게)
 };
 
 const FlipPager = forwardRef<FlipHandle, Props>(function FlipPager(
-  { current, max, width, renderPage, onChange, onFlipSound },
+  { current, neighbor, width, renderPage, onChange, onFlipSound, locked },
   ref,
 ) {
   const p = useRef(new Animated.Value(0)).current;
   const [incoming, setIncoming] = useState<{ dir: 1 | -1; key: string } | null>(null);
-  const live = useRef({ current, max, width, onChange, onFlipSound });
-  live.current = { current, max, width, onChange, onFlipSound };
+  const live = useRef({ current, neighbor, width, onChange, onFlipSound, locked });
+  live.current = { current, neighbor, width, onChange, onFlipSound, locked };
   const drag = useRef({ dir: 0 as 0 | 1 | -1, key: '', v: 0, busy: false });
+  const swipeDir = useRef<1 | -1>(1);
 
   const targetOf = (dir: 1 | -1) => {
-    const { current: c, max: m } = live.current;
-    if (dir === 1) return c < m ? shiftKey(c, 1) : null;
-    return shiftKey(c, -1);
+    const { current: c, neighbor: n } = live.current;
+    return n(c, dir);
   };
 
   const settle = (commit: boolean, ms: number) => {
@@ -75,10 +75,16 @@ const FlipPager = forwardRef<FlipHandle, Props>(function FlipPager(
   const pan = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponderCapture: (_, g) =>
-          !drag.current.busy && Math.abs(g.dx) > 16 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
-        onPanResponderGrant: (_, g) => {
-          if (!begin(g.dx < 0 ? 1 : -1)) drag.current.dir = 0;
+        // 방향은 손가락을 가로채는 순간에 정함 (잡은 뒤에는 dx가 0부터 다시 시작해서 방향을 알 수 없음)
+        onMoveShouldSetPanResponderCapture: (_, g) => {
+          if (live.current.locked) return false;
+          // 손가락이 확실히 옆으로 움직일 때만 책장 넘김으로 봄 (살짝 흔들리는 터치는 무시)
+          const ok = !drag.current.busy && Math.abs(g.dx) > 28 && Math.abs(g.dx) > Math.abs(g.dy) * 2.5;
+          if (ok) swipeDir.current = g.dx < 0 ? 1 : -1;
+          return ok;
+        },
+        onPanResponderGrant: () => {
+          if (!begin(swipeDir.current)) drag.current.dir = 0;
         },
         onPanResponderMove: (_, g) => {
           const d = drag.current;

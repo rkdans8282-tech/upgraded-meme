@@ -1,22 +1,33 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Mood } from './moods';
 import type { Sticker } from './stickers';
+import type { Stroke } from './strokes';
+import type { Layout } from './layouts';
 
-export type Entry = { mood?: Mood; text?: string; stickers?: Sticker[] };
-export type Entries = Record<string, Entry>; // { "2026-10-04": { mood, text } }
+export type Entry = { mood?: Mood; text?: string; stickers?: Sticker[]; strokes?: Stroke[]; layout?: Layout };
+export type Entries = Record<string, Entry>; // { "2026-10-04": { text }, "memo:3": { strokes } }
 
-const KEY = 'ppiyak:entries'; // 이전 버전 데이터가 남도록 키 이름 유지
+// 다이어리마다 따로 저장: 'ppiyak:entries:<다이어리 id>'
+// (예전 한 권짜리 버전의 'ppiyak:entries'는 첫 다이어리로 옮겨 담음 → diaries.ts)
+export const LEGACY_KEY = 'ppiyak:entries';
+const keyOf = (diaryId: string) => `${LEGACY_KEY}:${diaryId}`;
 
-export async function loadEntries(): Promise<Entries> {
+export async function loadEntries(diaryId: string): Promise<Entries> {
   try {
-    return JSON.parse((await AsyncStorage.getItem(KEY)) ?? '{}');
+    return JSON.parse((await AsyncStorage.getItem(keyOf(diaryId))) ?? '{}');
   } catch {
     return {};
   }
 }
 
-export async function saveEntries(entries: Entries) {
+export async function saveEntries(diaryId: string, entries: Entries) {
   try {
-    await AsyncStorage.setItem(KEY, JSON.stringify(entries));
+    await AsyncStorage.setItem(keyOf(diaryId), JSON.stringify(entries));
+  } catch {}
+}
+
+export async function removeEntries(diaryId: string) {
+  try {
+    await AsyncStorage.removeItem(keyOf(diaryId));
   } catch {}
 }
