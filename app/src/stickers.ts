@@ -15,11 +15,21 @@ export type Sticker = {
   aspect?: number; // 화면에 보이는 가로/세로 비율
   imgAspect?: number; // 원본 사진 가로/세로 비율
   cut?: Cut; // 오린 모양 (없으면 네모 그대로)
+  text?: string; // 글상자: 글이 들어 있는 스티커 (key는 '')
 };
 
 export const BASE_SIZE = 0.26; // 배율 1일 때 스티커 너비 = 쪽 너비의 26%
+export const TEXT_WIDTH = 0.5; // 글상자 배율 1일 때 너비 = 쪽 너비의 50%
 export const SCALE_MIN = 0.35;
 export const SCALE_MAX = 4;
+
+// 스티커가 차지하는 절반 크기(쪽 크기 대비 비율). 올가미로 묶을 때 상자 범위를 구하는 용도
+export function stickerHalf(s: Sticker, pageW: number, pageH: number): [number, number] {
+  const w = pageW * (s.text !== undefined ? TEXT_WIDTH : BASE_SIZE) * s.scale;
+  const lines = s.text === undefined ? 1 : s.text.split(String.fromCharCode(10)).length;
+  const h = s.text !== undefined ? pageW * 0.052 * 1.3 * s.scale * lines + 12 : s.photo ? w / (s.aspect ?? 1) : w;
+  return [w / 2 / pageW, h / 2 / pageH];
+}
 
 export const CATEGORY_LABELS: Record<string, string> = {
   basic: '기본', flower: '꽃', weather: '날씨', food: '음식', tape: '테이프', memo: '메모', my: '내 스티커',

@@ -2,7 +2,9 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
 import Svg, { G, Path, Polygon, Rect } from 'react-native-svg';
 import { MARKER_MULT, MARKER_OPACITY, Stroke, Tool, hits, toPath } from '../strokes';
-import { newId } from '../stickers';
+import { Sticker, newId, stickerHalf } from '../stickers';
+
+export type GroupDrag = { ids: string[]; dx: number; dy: number };
 
 type Props = {
   strokes: Stroke[];
@@ -13,7 +15,14 @@ type Props = {
   color: string;
   widthRatio: number;
   onChange: (next: Stroke[]) => void; // 획이 추가/삭제/이동될 때 (손을 뗄 때 한 번)
+  // 올가미(묶어서 옮기기)가 스티커·사진·글상자까지 함께 옮길 수 있게
+  stickers?: Sticker[];
+  onMoveStickers?: (next: Sticker[]) => void;
+  onDrag?: (d: GroupDrag | null) => void; // 끌고 있는 동안 스티커 쪽 화면을 같이 움직이기 위한 알림
 };
+
+const NO_STICKERS: Sticker[] = [];
+const noop1 = () => {};
 
 // 다 그린 획은 경로 문자열을 한 번만 만들어 두고, 그리는 중인 획만 다시 그림
 const Done = memo(function Done({ strokes, w, h }: { strokes: Stroke[]; w: number; h: number }) {
@@ -45,40 +54,58 @@ function inside(poly: number[], x: number, y: number) {
   }
   return c;
 }
-const bounds = (list: Stroke[]) => {
+// 묶은 것들(획 + 스티커)이 차지하는 범위
+const bounds = (list: Stroke[], stk: Sticker[], pageW: number, pageH: number) => {
   let x0 = 1, y0 = 1, x1 = 0, y1 = 0;
   for (const s of list) for (let i = 0; i < s.pts.length; i += 2) {
     x0 = Math.min(x0, s.pts[i]); x1 = Math.max(x1, s.pts[i]);
     y0 = Math.min(y0, s.pts[i + 1]); y1 = Math.max(y1, s.pts[i + 1]);
   }
+  for (const s of stk) {
+    const [hx, hy] = stickerHalf(s, pageW, pageH);
+    x0 = Math.min(x0, s.x - hx); x1 = Math.max(x1, s.x + hx);
+    y0 = Math.min(y0, s.y - hy); y1 = Math.max(y1, s.y + hy);
+  }
   return { x0, y0, x1, y1 };
 };
 const PAD = 0.02;
 
-function InkLayerBase({ strokes, pageW, pageH, drawing, tool, color, widthRatio, onChange }: Props) {
+type Gesture = { stroke: Stroke | null; erased: Stroke[] | null; changed: boolean; mode: 'draw' | 'lasso' | 'move'; loop: number[]; d: [number, number] };
+const idle = (): Gesture => ({ stroke: null, erased: null, changed: false, mode: 'draw', loop: [], d: [0, 0] });
+
+function InkLayerBase({ strokes, pageW, pageH, drawing, tool, color, widthRatio, onChange, stickers = NO_STICKERS, onMoveStickers = noop1, onDrag = noop1 }: Props) {
   const [live, setLive] = useState<Stroke | null>(null);
   const [erased, setErased] = useState<Stroke[] | null>(null); // 지우개로 지우는 중인 목록
   const [loop, setLoop] = useState<number[] | null>(null); // 올가미로 그리는 중인 선
   const [sel, setSel] = useState<string[]>([]); // 올가미로 묶은 획
+  const [selSt, setSelSt] = useState<string[]>([]); // 올가미로 묶은 스티커·사진·글상자
   const [move, setMove] = useState<[number, number] | null>(null); // 묶음을 끌고 있는 거리 (비율)
-  const latest = useRef({ strokes, pageW, pageH, tool, color, widthRatio, onChange, sel });
-  latest.current = { strokes, pageW, pageH, tool, color, widthRatio, onChange, sel };
-  const cur = useRef<{ stroke: Stroke | null; erased: Stroke[] | null; changed: boolean; mode: 'draw' | 'lasso' | 'move'; loop: number[]; d: [number, number] }>({
-    stroke: null, erased: null, changed: false, mode: 'draw', loop: [], d: [0, 0],
-  });
+  const latest = useRef({ strokes, stickers, pageW, pageH, tool, color, widthRatio, onChange, onMoveStickers, onDrag, sel, selSt });
+  latest.current = { strokes, stickers, pageW, pageH, tool, color, widthRatio, onChange, onMoveStickers, onDrag, sel, selSt };
+  const cur = useRef<Gesture>(idle());
 
   useEffect(() => {
-    if (tool !== 'lasso' || !drawing) setSel([]);
+    if (tool !== 'lasso' || !drawing) {
+      setSel([]);
+      setSelSt([]);
+    }
   }, [tool, drawing]);
-  // 획이 바뀌어서(되돌리기 등) 사라진 것은 선택에서 뺌
+  // 획·스티커가 바뀌어서(되돌리기 등) 사라진 것은 선택에서 뺌
   useEffect(() => {
     setSel((s) => (s.length ? s.filter((id) => strokes.some((x) => x.id === id)) : s));
   }, [strokes]);
+  useEffect(() => {
+    setSelSt((s) => (s.length ? s.filter((id) => stickers.some((x) => x.id === id)) : s));
+  }, [stickers]);
 
   const pan = useMemo(() => {
     const at = (e: { nativeEvent: { locationX: number; locationY: number } }) => {
       const { pageW: w, pageH: h } = latest.current;
       return [Math.min(1, Math.max(0, e.nativeEvent.locationX / w)), Math.min(1, Math.max(0, e.nativeEvent.locationY / h))];
+    };
+    const picked = () => {
+      const L = latest.current;
+      return { st: L.strokes.filter((s) => L.sel.includes(s.id)), sk: L.stickers.filter((s) => L.selSt.includes(s.id)) };
     };
     const erase = (x: number, y: number) => {
       const c = cur.current;
@@ -97,17 +124,19 @@ function InkLayerBase({ strokes, pageW, pageH, drawing, tool, color, widthRatio,
       onPanResponderTerminationRequest: () => false, // 책장 넘기기 제스처가 가로채지 못하게
       onPanResponderGrant: (e) => {
         const [x, y] = at(e);
-        const { tool: t, color: col, widthRatio: wr, sel: picked, strokes: all } = latest.current;
-        cur.current = { stroke: null, erased: null, changed: false, mode: 'draw', loop: [], d: [0, 0] };
+        const { tool: t, color: col, widthRatio: wr, pageW: w, pageH: h } = latest.current;
+        cur.current = idle();
         if (t === 'eraser') return erase(x, y);
         if (t === 'lasso') {
-          const b = bounds(all.filter((s) => picked.includes(s.id)));
-          if (picked.length && x >= b.x0 - PAD && x <= b.x1 + PAD && y >= b.y0 - PAD && y <= b.y1 + PAD) {
+          const p = picked();
+          const b = bounds(p.st, p.sk, w, h);
+          if (p.st.length + p.sk.length > 0 && x >= b.x0 - PAD && x <= b.x1 + PAD && y >= b.y0 - PAD && y <= b.y1 + PAD) {
             cur.current.mode = 'move'; // 묶음 안을 잡으면 옮기기
           } else {
             cur.current.mode = 'lasso';
             cur.current.loop = [x, y];
             setSel([]);
+            setSelSt([]);
             setLoop([x, y]);
           }
           return;
@@ -123,6 +152,7 @@ function InkLayerBase({ strokes, pageW, pageH, drawing, tool, color, widthRatio,
           if (c.mode === 'move') {
             c.d = [gs.dx / w, gs.dy / h];
             setMove(c.d);
+            if (latest.current.selSt.length) latest.current.onDrag({ ids: latest.current.selSt, dx: c.d[0], dy: c.d[1] });
           } else {
             const [x, y] = at(e);
             c.loop = [...c.loop, x, y];
@@ -145,30 +175,37 @@ function InkLayerBase({ strokes, pageW, pageH, drawing, tool, color, widthRatio,
     });
     function finish() {
       const c = cur.current;
-      const { strokes: base, onChange: commit, sel: picked } = latest.current;
+      const L = latest.current;
       if (c.mode === 'lasso') {
-        // 올가미 안에 절반 넘게 들어온 획을 묶음
+        // 올가미 안에 절반 넘게 들어온 획, 가운데가 들어온 스티커·글상자를 묶음
         const poly = c.loop;
-        const ids = poly.length >= 6
-          ? base.filter((s) => {
-              const n = s.pts.length / 2;
-              let k = 0;
-              for (let i = 0; i < s.pts.length; i += 2) if (inside(poly, s.pts[i], s.pts[i + 1])) k++;
-              return k * 2 >= n;
-            }).map((s) => s.id)
-          : [];
-        setSel(ids);
+        const ok = poly.length >= 6;
+        setSel(
+          ok
+            ? L.strokes
+                .filter((s) => {
+                  let k = 0;
+                  for (let i = 0; i < s.pts.length; i += 2) if (inside(poly, s.pts[i], s.pts[i + 1])) k++;
+                  return k * 2 >= s.pts.length / 2;
+                })
+                .map((s) => s.id)
+            : [],
+        );
+        setSelSt(ok ? L.stickers.filter((s) => inside(poly, s.x, s.y)).map((s) => s.id) : []);
       } else if (c.mode === 'move') {
         const [dx, dy] = c.d;
         if (dx || dy) {
-          const b = bounds(base.filter((s) => picked.includes(s.id)));
+          const p = picked();
+          const b = bounds(p.st, p.sk, L.pageW, L.pageH);
           // 종이 밖으로 나가지 않게 이동량을 제한
           const ddx = Math.min(1 - b.x1, Math.max(-b.x0, dx)), ddy = Math.min(1 - b.y1, Math.max(-b.y0, dy));
-          commit(base.map((s) => (picked.includes(s.id) ? { ...s, pts: s.pts.map((v, i) => v + (i % 2 === 0 ? ddx : ddy)) } : s)));
+          if (p.st.length) L.onChange(L.strokes.map((s) => (L.sel.includes(s.id) ? { ...s, pts: s.pts.map((v, i) => v + (i % 2 === 0 ? ddx : ddy)) } : s)));
+          if (p.sk.length) L.onMoveStickers(L.stickers.map((s) => (L.selSt.includes(s.id) ? { ...s, x: s.x + ddx, y: s.y + ddy } : s)));
         }
-      } else if (c.stroke) commit([...base, c.stroke]);
-      else if (c.changed && c.erased) commit(c.erased);
-      cur.current = { stroke: null, erased: null, changed: false, mode: 'draw', loop: [], d: [0, 0] };
+        L.onDrag(null);
+      } else if (c.stroke) L.onChange([...L.strokes, c.stroke]);
+      else if (c.changed && c.erased) L.onChange(c.erased);
+      cur.current = idle();
       setLive(null);
       setErased(null);
       setLoop(null);
@@ -178,15 +215,17 @@ function InkLayerBase({ strokes, pageW, pageH, drawing, tool, color, widthRatio,
 
   const shown = erased ?? strokes;
   const picked = useMemo(() => shown.filter((s) => sel.includes(s.id)), [shown, sel]);
+  const pickedSt = useMemo(() => stickers.filter((s) => selSt.includes(s.id)), [stickers, selSt]);
   const rest = useMemo(() => (sel.length ? shown.filter((s) => !sel.includes(s.id)) : shown), [shown, sel]);
   if (!pageW || !pageH) return null;
-  const box = picked.length ? bounds(picked) : null;
+  const hasSel = picked.length + pickedSt.length > 0;
+  const box = hasSel ? bounds(picked, pickedSt, pageW, pageH) : null;
   const [mx, my] = move ?? [0, 0];
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents={drawing ? 'auto' : 'none'} {...(drawing ? pan.panHandlers : null)}>
       <Svg width={pageW} height={pageH} pointerEvents="none">
         <Done strokes={rest} w={pageW} h={pageH} />
-        {picked.length > 0 && (
+        {hasSel && (
           <G x={mx * pageW} y={my * pageH}>
             <Done strokes={picked} w={pageW} h={pageH} />
             {box && (

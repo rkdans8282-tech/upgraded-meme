@@ -1,6 +1,6 @@
 import { memo, useCallback, useRef, useState } from 'react';
 import { Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { InkLayer } from './InkLayer';
+import { GroupDrag, InkLayer } from './InkLayer';
 import { CutoutModal } from './CutoutModal';
 import { PageHoles } from './PageHoles';
 import { RemoteKey, RemoteMenu } from './RemoteMenu';
@@ -90,6 +90,27 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
       setSelectedId(st.id);
     } catch {}
   };
+  // 글상자: 스티커처럼 옮기고 줄이고 돌릴 수 있는 글. '수정'을 눌러야 글이 고쳐짐(끌어서 옮기기와 헷갈리지 않게)
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const addText = () => {
+    Keyboard.dismiss();
+    const st: Sticker = { id: newId(), key: '', text: '', x: 0.5, y: 0.3, scale: 1, rot: 0 };
+    apply([...stickers, st]);
+    setSelectedId(st.id);
+    setEditingId(st.id);
+  };
+  const onEditText = useCallback((id: string, text: string) => onStickers(dayKey, stickers.map((st) => (st.id === id ? { ...st, text } : st))), [onStickers, dayKey, stickers]);
+  const finishEdit = () => {
+    const st = stickers.find((x) => x.id === editingId);
+    setEditingId(null);
+    if (st && !st.text?.trim()) {
+      apply(stickers.filter((x) => x.id !== st.id)); // 비어 있으면 지움
+      setSelectedId(null);
+    }
+  };
+  // 올가미로 묶어서 옮기는 동안 스티커·글상자도 같이 움직여 보이게
+  const [groupDrag, setGroupDrag] = useState<GroupDrag | null>(null);
+  const moveStickers = useCallback((next: Sticker[]) => apply(next), [apply]);
   const [cutting, setCutting] = useState(false);
   const applyCut = (cut: Cut) => {
     const [x0, y0, x1, y1] = cut.box;
@@ -136,6 +157,7 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
     else if (k === 'sticker') openSheet(undefined);
     else if (k === 'tape') openSheet('tape');
     else if (k === 'photo') addPhoto();
+    else if (k === 'text') addText();
     else if (k === 'save') onSave();
     else if (k === 'shelf') onShelf?.();
     else onCalendar(dayKey);
@@ -143,7 +165,7 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
 
   const [contentH, setContentH] = useState(0);
   const total = Math.max(areaH, contentH + LINE);
-  const showRemote = !drawing && !selected && !sheet && !cutting;
+  const showRemote = !drawing && !selected && !sheet && !cutting && !editingId;
 
   return (
     <View style={[s.page, transparent && { backgroundColor: 'transparent' }]} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
@@ -180,6 +202,9 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
         color={penColor}
         widthRatio={WIDTHS[widthIdx].ratio}
         onChange={changeStrokes}
+        stickers={stickers}
+        onMoveStickers={moveStickers}
+        onDrag={setGroupDrag}
       />
 
       {drawing ? (
@@ -226,10 +251,18 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
             </View>
           )}
         </View>
+      ) : editingId ? (
+        <View style={s.editBar}>
+          <Text style={s.eraserHint}>글을 다 적으면 완료를 눌러요</Text>
+          <View style={{ width: 92 }}>
+            <EditBtn icon="✓" label="완료" strong onPress={finishEdit} />
+          </View>
+        </View>
       ) : selected ? (
         <View style={s.editBar}>
           <EditBtn icon="－" label="작게" onPress={() => patchSelected((st) => ({ scale: clamp(st.scale * 0.85, SCALE_MIN, SCALE_MAX) }))} />
           <EditBtn icon="＋" label="크게" onPress={() => patchSelected((st) => ({ scale: clamp(st.scale * 1.18, SCALE_MIN, SCALE_MAX) }))} />
+          {selected.text !== undefined && <EditBtn icon="✎" label="수정" onPress={() => setEditingId(selected.id)} />}
           {selected.photo && !isGif(selected.photo) && <EditBtn icon="✂️" label="오리기" onPress={() => setCutting(true)} />}
           <View style={s.rotGroup}>
             <View style={s.rotBtns}>
@@ -257,7 +290,7 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
 
       {/* 스티커 층: 글 위에 올라가고, 스티커가 없는 곳은 터치가 글상자로 통과 */}
       <View style={StyleSheet.absoluteFill} pointerEvents={drawing ? 'none' : 'box-none'}>
-        <StickerLayer stickers={stickers} selectedId={selectedId} pageW={box.w} pageH={box.h} onSelect={setSelectedId} onCommit={commit} />
+        <StickerLayer stickers={stickers} selectedId={selectedId} pageW={box.w} pageH={box.h} onSelect={setSelectedId} onCommit={commit} editingId={editingId} onEditText={onEditText} drag={groupDrag} />
       </View>
 
       {showRemote && pageLabel ? (
@@ -266,7 +299,7 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
         </Pressable>
       ) : null}
 
-      {showRemote && <RemoteMenu items={remoteItems ?? (onShelf ? ['pen', 'sticker', 'photo', 'tape', 'calendar', 'save', 'shelf'] : ['pen', 'sticker', 'photo', 'tape', 'calendar', 'save'])} onPick={onRemote} />}
+      {showRemote && <RemoteMenu items={remoteItems ?? (onShelf ? ['pen', 'text', 'sticker', 'photo', 'tape', 'calendar', 'save', 'shelf'] : ['pen', 'text', 'sticker', 'photo', 'tape', 'calendar', 'save'])} onPick={onRemote} />}
 
       {cutting && selected?.photo && (
         <CutoutModal photo={selected.photo} imgAspect={selected.imgAspect ?? 1} onDone={applyCut} onClose={() => setCutting(false)} />

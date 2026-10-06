@@ -4,11 +4,12 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { theme } from '../theme';
 
 const { color, font } = theme;
-const R = 190; // 버튼 중심에서 항목까지 거리
+const R = 165; // 버튼 중심에서 항목까지 거리 (항목이 7개 이상이면 안쪽 R_IN, 바깥 R 두 줄로 놓음)
+const R_IN = 100;
 const ITEM = 46;
 const FAB = 56;
 
-export type RemoteKey = 'pen' | 'sticker' | 'photo' | 'tape' | 'calendar' | 'save' | 'shelf';
+export type RemoteKey = 'pen' | 'sticker' | 'photo' | 'tape' | 'calendar' | 'save' | 'shelf' | 'text';
 
 const icon = (k: RemoteKey): ReactNode => {
   const p = { stroke: color.text, strokeWidth: 1.8, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
@@ -23,6 +24,8 @@ const icon = (k: RemoteKey): ReactNode => {
       return (<Path d="M3 8l2 1.5L3 11l2 1.5L3 14l2 1.5L3 17h18l-2-1.5L21 14l-2-1.5L21 11l-2-1.5L21 8z" {...p} />);
     case 'save':
       return (<><Path d="M5 4h12l3 3v13H5z" {...p} /><Path d="M8 4v5h7V4M8 20v-6h8v6" {...p} /></>);
+    case 'text':
+      return (<><Path d="M5 6V4h14v2M12 4v16M9 20h6" {...p} /></>);
     case 'shelf':
       return (<Path d="M4 20V6h4v14M10 20V4h4v16M16 20V8l4 1v11M3 20h18" {...p} />);
     case 'calendar':
@@ -30,7 +33,7 @@ const icon = (k: RemoteKey): ReactNode => {
   }
 };
 
-const LABELS: Record<RemoteKey, string> = { pen: '펜', sticker: '스티커', photo: '사진', tape: '테이프', calendar: '달력', save: '저장', shelf: '책장' };
+const LABELS: Record<RemoteKey, string> = { pen: '펜', sticker: '스티커', photo: '사진', tape: '테이프', calendar: '달력', save: '저장', shelf: '책장', text: '글상자' };
 
 type Props = { items: RemoteKey[]; onPick: (k: RemoteKey) => void };
 
@@ -49,8 +52,14 @@ export function RemoteMenu({ items, onPick }: Props) {
       {open && <Pressable style={StyleSheet.absoluteFill} onPress={() => toggle(false)} accessibilityLabel="메뉴 닫기" />}
       <View style={s.anchor} pointerEvents="box-none">
         {items.map((k, i) => {
-          const deg = 180 + (items.length === 1 ? 45 : (90 * i) / (items.length - 1)); // 왼쪽 → 위쪽
+          // 7개 이상이면 앞쪽 절반은 안쪽 줄, 나머지는 바깥 줄에 놓아 서로 겹치지 않게 함
+          const two = items.length > 6;
+          const inner = two && i < Math.ceil(items.length / 2);
+          const ring = two ? (inner ? items.slice(0, Math.ceil(items.length / 2)) : items.slice(Math.ceil(items.length / 2))) : items;
+          const j = two && !inner ? i - Math.ceil(items.length / 2) : i;
+          const deg = 180 + (ring.length === 1 ? 45 : (90 * j) / (ring.length - 1)); // 왼쪽 → 위쪽
           const rad = (deg * Math.PI) / 180;
+          const R0 = inner ? R_IN : R;
           return (
             <Animated.View
               key={k}
@@ -60,8 +69,8 @@ export function RemoteMenu({ items, onPick }: Props) {
                 {
                   opacity: a,
                   transform: [
-                    { translateX: a.interpolate({ inputRange: [0, 1], outputRange: [0, Math.cos(rad) * R] }) },
-                    { translateY: a.interpolate({ inputRange: [0, 1], outputRange: [0, Math.sin(rad) * R] }) },
+                    { translateX: a.interpolate({ inputRange: [0, 1], outputRange: [0, Math.cos(rad) * R0] }) },
+                    { translateY: a.interpolate({ inputRange: [0, 1], outputRange: [0, Math.sin(rad) * R0] }) },
                     { scale: a },
                   ],
                 },
