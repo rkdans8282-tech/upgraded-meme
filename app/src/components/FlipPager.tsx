@@ -30,6 +30,7 @@ const FlipPager = forwardRef<FlipHandle, Props>(function FlipPager(
   const live = useRef({ current, neighbor, width, onChange, onFlipSound });
   live.current = { current, neighbor, width, onChange, onFlipSound };
   const drag = useRef({ dir: 0 as 0 | 1 | -1, key: '', v: 0, busy: false });
+  const swipeDir = useRef<1 | -1>(1);
 
   const targetOf = (dir: 1 | -1) => {
     const { current: c, neighbor: n } = live.current;
@@ -73,10 +74,14 @@ const FlipPager = forwardRef<FlipHandle, Props>(function FlipPager(
   const pan = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponderCapture: (_, g) =>
-          !drag.current.busy && Math.abs(g.dx) > 16 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
-        onPanResponderGrant: (_, g) => {
-          if (!begin(g.dx < 0 ? 1 : -1)) drag.current.dir = 0;
+        // 방향은 손가락을 가로채는 순간에 정함 (잡은 뒤에는 dx가 0부터 다시 시작해서 방향을 알 수 없음)
+        onMoveShouldSetPanResponderCapture: (_, g) => {
+          const ok = !drag.current.busy && Math.abs(g.dx) > 16 && Math.abs(g.dx) > Math.abs(g.dy) * 2;
+          if (ok) swipeDir.current = g.dx < 0 ? 1 : -1;
+          return ok;
+        },
+        onPanResponderGrant: () => {
+          if (!begin(swipeDir.current)) drag.current.dir = 0;
         },
         onPanResponderMove: (_, g) => {
           const d = drag.current;
