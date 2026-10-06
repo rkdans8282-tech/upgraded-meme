@@ -15,6 +15,7 @@ import { useEntries } from './useEntries';
 import { useSounds } from './sounds';
 import { theme } from './theme';
 import type { Sticker } from './stickers';
+import type { Layout } from './layouts';
 import type { Stroke } from './strokes';
 
 const { color } = theme;
@@ -47,14 +48,14 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
   const [indexOpen, setIndexOpen] = useState(false);
   const openIndex = useCallback(() => setIndexOpen(true), []);
 
-  const animateCover = (to: 0 | 1, end: 'cover' | 'book') => {
+  const animateCover = useCallback((to: 0 | 1, end: 'cover' | 'book') => {
     sounds.flip();
     setPhase('opening');
     coverAnim.setValue(1 - to);
     Animated.timing(coverAnim, { toValue: to, duration: 700, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }).start(
       () => setPhase(end),
     );
-  };
+  }, [sounds, coverAnim]);
 
   // 날짜 칸 확대: 누른 자리에서 종이가 커지며 열림
   const [zoom, setZoom] = useState<{ day: string; px: number; py: number } | null>(null);
@@ -78,6 +79,7 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
     onBack();
   }, [flush, onBack]);
 
+  const onLayout = useCallback((d: string, layout: Layout) => update(d, { layout }), [update]);
   const onText = useCallback((d: string, text: string) => update(d, { text }), [update]);
   const onStickers = useCallback((d: string, stickers: Sticker[]) => update(d, { stickers }), [update]);
   const onStrokes = useCallback((d: string, strokes: Stroke[]) => update(d, { strokes }), [update]);
@@ -110,7 +112,7 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
       return animateCover(0, 'cover');
     }
     if (phase === 'cover') goShelf();
-  }, [indexOpen, zoom, closeZoom, sounds, phase, goShelf]);
+  }, [indexOpen, zoom, closeZoom, sounds, phase, goShelf, animateCover]);
   const nav = useCallback((key: string, dir: 1 | -1) => neighbor(key, dir, year), [year]);
 
   const renderPage = useCallback(
@@ -128,12 +130,14 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
           onCalendar={goCalendar}
           onSave={onSave}
           onShelf={goShelf}
+          layout={entries[key]?.layout}
+          onLayout={onLayout}
           pageLabel={`${memoNo(key)} / ${MEMO_PAGES}`}
           onIndex={openIndex}
           holes={holes}
         />
       ),
-    [entries, today, onText, onStickers, onStrokes, sounds.scratch, goCalendar, openZoom, goShelf, onSave, openIndex, holes, box],
+    [entries, today, onText, onStickers, onStrokes, sounds.scratch, goCalendar, openZoom, goShelf, onSave, onLayout, openIndex, holes, box],
   );
 
   if (!ready) return <View style={{ flex: 1, backgroundColor: color.desk }} />;

@@ -38,7 +38,7 @@ export function Paywall({ visible, price, busy, message, live, onBuy, onRestore,
             </Pressable>
           </View>
           <Text style={s.fine}>
-            결제는 Apple ID로 청구돼요. 이미 구매한 적이 있다면 '구매 복원'을 눌러 주세요.{!live ? '\n(테스트 모드: 실제 결제 없이 바로 추가돼요)' : ''}
+            결제는 Apple ID로 청구돼요. 이미 구매한 적이 있다면 「구매 복원」을 눌러 주세요.{!live ? '\n(테스트 모드: 실제 결제 없이 바로 추가돼요)' : ''}
           </Text>
         </Pressable>
       </Pressable>

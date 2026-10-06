@@ -4,6 +4,8 @@ import { GroupDrag, InkLayer } from './InkLayer';
 import { CutoutModal } from './CutoutModal';
 import { PageHoles } from './PageHoles';
 import { RemoteKey, RemoteMenu } from './RemoteMenu';
+import { LayoutSheet } from './LayoutSheet';
+import { Layout, segments } from '../layouts';
 import { StickerLayer } from './StickerLayer';
 import { StickerSheet } from './StickerSheet';
 import { Cut, SCALE_MAX, SCALE_MIN, Sticker, newId } from '../stickers';
@@ -25,6 +27,8 @@ type Props = {
   onScratch: () => void;
   onCalendar: (day: string) => void;
   onSave: () => void;
+  layout?: Layout; // 공책 쪽의 칸 나누기 (구분선)
+  onLayout?: (day: string, layout: Layout) => void;
   onShelf?: () => void; // 책장으로 돌아가기 (둥근 리모컨 메뉴)
   pageLabel?: string; // 공책 쪽 번호 ('12 / 300')
   onIndex?: () => void; // 쪽 번호를 누르면 목록 열기
@@ -39,10 +43,11 @@ const NO_STICKERS: Sticker[] = [];
 const NO_STROKES: Stroke[] = [];
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
-function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch, onCalendar, onSave, onShelf, pageLabel, onIndex, dateLabel, transparent, remoteItems, holes }: Props) {
+function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch, onCalendar, onSave, onShelf, layout, onLayout, pageLabel, onIndex, dateLabel, transparent, remoteItems, holes }: Props) {
   const [areaH, setAreaH] = useState(300);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [sheet, setSheet] = useState(false);
+  const [layoutSheet, setLayoutSheet] = useState(false);
   const [sheetCat, setSheetCat] = useState<string | undefined>(undefined);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const history = useRef<Sticker[][]>([]); // 되돌리기용 이전 상태들
@@ -158,6 +163,11 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
     else if (k === 'tape') openSheet('tape');
     else if (k === 'photo') addPhoto();
     else if (k === 'text') addText();
+    else if (k === 'layout') {
+      Keyboard.dismiss();
+      setSelectedId(null);
+      setLayoutSheet(true);
+    }
     else if (k === 'save') onSave();
     else if (k === 'shelf') onShelf?.();
     else onCalendar(dayKey);
@@ -165,11 +175,25 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
 
   const [contentH, setContentH] = useState(0);
   const total = Math.max(areaH, contentH + LINE);
-  const showRemote = !drawing && !selected && !sheet && !cutting && !editingId;
+  const showRemote = !drawing && !selected && !sheet && !layoutSheet && !cutting && !editingId;
 
   return (
     <View style={[s.page, transparent && { backgroundColor: 'transparent' }]} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       <PageHoles holes={holes} />
+      {layout && layout !== 'none' ? (
+        <View style={s.panels} pointerEvents="none">
+          {segments(layout).map(([x0, y0, x1, y1], i) => (
+            <View
+              key={i}
+              style={{
+                position: 'absolute', backgroundColor: '#B9B9B9',
+                left: `${x0 * 100}%`, top: `${y0 * 100}%`,
+                width: x0 === x1 ? 1 : `${(x1 - x0) * 100}%`, height: y0 === y1 ? 1 : `${(y1 - y0) * 100}%`,
+              }}
+            />
+          ))}
+        </View>
+      ) : null}
       {dateLabel ? <View style={s.frame} pointerEvents="none" /> : null}
       {dateLabel ? <DateTag dayKey={dateLabel} /> : null}
 
@@ -299,10 +323,21 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
         </Pressable>
       ) : null}
 
-      {showRemote && <RemoteMenu items={remoteItems ?? (onShelf ? ['pen', 'text', 'sticker', 'photo', 'tape', 'calendar', 'save', 'shelf'] : ['pen', 'text', 'sticker', 'photo', 'tape', 'calendar', 'save'])} onPick={onRemote} />}
+      {showRemote && <RemoteMenu items={remoteItems ?? [...(['pen', 'text', 'sticker', 'photo', 'tape'] as RemoteKey[]), ...(pageLabel ? (['layout'] as RemoteKey[]) : []), 'calendar', 'save', ...(onShelf ? (['shelf'] as RemoteKey[]) : [])]} onPick={onRemote} />}
 
       {cutting && selected?.photo && (
         <CutoutModal photo={selected.photo} imgAspect={selected.imgAspect ?? 1} onDone={applyCut} onClose={() => setCutting(false)} />
+      )}
+
+      {layoutSheet && (
+        <LayoutSheet
+          current={layout ?? 'none'}
+          onPick={(l) => {
+            onLayout?.(dayKey, l);
+            setLayoutSheet(false);
+          }}
+          onClose={() => setLayoutSheet(false)}
+        />
       )}
 
       {sheet && <StickerSheet initialCat={sheetCat} onPick={addSticker} onClose={() => setSheet(false)} />}
@@ -351,6 +386,8 @@ const s = StyleSheet.create({
     position: 'absolute', left: theme.pageLeft + 6, top: 16, flexDirection: 'row', alignItems: 'center',
     borderWidth: 1, borderColor: '#2B2B2B', backgroundColor: color.paper, paddingVertical: 7, paddingHorizontal: 12,
   },
+  // 공책 쪽 칸 나누기 구분선이 놓이는 영역 (테두리 포함)
+  panels: { position: 'absolute', left: theme.pageLeft - 8, right: 12, top: 22, bottom: 16, borderWidth: 1, borderColor: '#B9B9B9' },
   // 페이지를 두른 가는 선. 날짜 상자가 윗선에 걸쳐 있어서 머리말처럼 보임
   frame: { position: 'absolute', left: theme.pageLeft - 8, right: 12, top: 43, bottom: 16, borderWidth: 1, borderColor: '#B9B9B9' },
   dateDay: { fontFamily: font.serif, fontSize: 34, lineHeight: 40, color: '#2B2B2B', minWidth: 22, textAlign: 'center' },

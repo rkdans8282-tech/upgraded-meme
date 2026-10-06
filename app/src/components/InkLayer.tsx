@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
 import Svg, { G, Path, Polygon, Rect } from 'react-native-svg';
 import { MARKER_MULT, MARKER_OPACITY, Stroke, Tool, hits, toPath } from '../strokes';
@@ -80,23 +80,23 @@ function InkLayerBase({ strokes, pageW, pageH, drawing, tool, color, widthRatio,
   const [sel, setSel] = useState<string[]>([]); // 올가미로 묶은 획
   const [selSt, setSelSt] = useState<string[]>([]); // 올가미로 묶은 스티커·사진·글상자
   const [move, setMove] = useState<[number, number] | null>(null); // 묶음을 끌고 있는 거리 (비율)
-  const latest = useRef({ strokes, stickers, pageW, pageH, tool, color, widthRatio, onChange, onMoveStickers, onDrag, sel, selSt });
-  latest.current = { strokes, stickers, pageW, pageH, tool, color, widthRatio, onChange, onMoveStickers, onDrag, sel, selSt };
+  // 획·스티커가 바뀌어서(되돌리기 등) 사라진 것은 선택에서 뺌
+  const selOk = useMemo(() => sel.filter((id) => strokes.some((x) => x.id === id)), [sel, strokes]);
+  const selStOk = useMemo(() => selSt.filter((id) => stickers.some((x) => x.id === id)), [selSt, stickers]);
+  const latest = useRef({ strokes, stickers, pageW, pageH, tool, color, widthRatio, onChange, onMoveStickers, onDrag, sel: selOk, selSt: selStOk });
+  latest.current = { strokes, stickers, pageW, pageH, tool, color, widthRatio, onChange, onMoveStickers, onDrag, sel: selOk, selSt: selStOk };
   const cur = useRef<Gesture>(idle());
 
-  useEffect(() => {
-    if (tool !== 'lasso' || !drawing) {
+  // 올가미 모드가 아니게 되면 선택을 비움 (렌더 중에 상태를 맞춰 주는 방식)
+  const lassoOn = tool === 'lasso' && drawing;
+  const [wasLasso, setWasLasso] = useState(lassoOn);
+  if (wasLasso !== lassoOn) {
+    setWasLasso(lassoOn);
+    if (!lassoOn) {
       setSel([]);
       setSelSt([]);
     }
-  }, [tool, drawing]);
-  // 획·스티커가 바뀌어서(되돌리기 등) 사라진 것은 선택에서 뺌
-  useEffect(() => {
-    setSel((s) => (s.length ? s.filter((id) => strokes.some((x) => x.id === id)) : s));
-  }, [strokes]);
-  useEffect(() => {
-    setSelSt((s) => (s.length ? s.filter((id) => stickers.some((x) => x.id === id)) : s));
-  }, [stickers]);
+  }
 
   const pan = useMemo(() => {
     const at = (e: { nativeEvent: { locationX: number; locationY: number } }) => {
@@ -214,9 +214,9 @@ function InkLayerBase({ strokes, pageW, pageH, drawing, tool, color, widthRatio,
   }, []);
 
   const shown = erased ?? strokes;
-  const picked = useMemo(() => shown.filter((s) => sel.includes(s.id)), [shown, sel]);
-  const pickedSt = useMemo(() => stickers.filter((s) => selSt.includes(s.id)), [stickers, selSt]);
-  const rest = useMemo(() => (sel.length ? shown.filter((s) => !sel.includes(s.id)) : shown), [shown, sel]);
+  const picked = useMemo(() => shown.filter((s) => selOk.includes(s.id)), [shown, selOk]);
+  const pickedSt = useMemo(() => stickers.filter((s) => selStOk.includes(s.id)), [stickers, selStOk]);
+  const rest = useMemo(() => (selOk.length ? shown.filter((s) => !selOk.includes(s.id)) : shown), [shown, selOk]);
   if (!pageW || !pageH) return null;
   const hasSel = picked.length + pickedSt.length > 0;
   const box = hasSel ? bounds(picked, pickedSt, pageW, pageH) : null;

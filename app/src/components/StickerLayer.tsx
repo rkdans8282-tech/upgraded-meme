@@ -64,7 +64,6 @@ function StickerItem({ s, selected, pageW, pageH, onSelect, onCommit, editing, o
         onPanResponderRelease: () => finish(),
         onPanResponderTerminate: () => finish(),
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 

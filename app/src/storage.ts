@@ -2,8 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Mood } from './moods';
 import type { Sticker } from './stickers';
 import type { Stroke } from './strokes';
+import type { Layout } from './layouts';
 
-export type Entry = { mood?: Mood; text?: string; stickers?: Sticker[]; strokes?: Stroke[] };
+export type Entry = { mood?: Mood; text?: string; stickers?: Sticker[]; strokes?: Stroke[]; layout?: Layout };
 export type Entries = Record<string, Entry>; // { "2026-10-04": { text }, "memo:3": { strokes } }
 
 // 다이어리마다 따로 저장: 'ppiyak:entries:<다이어리 id>'
