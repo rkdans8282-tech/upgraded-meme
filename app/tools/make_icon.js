@@ -1,6 +1,6 @@
 // 앱 아이콘(assets/icon.png)을 그려서 저장합니다.  사용: node tools/make_icon.js
 // 필요: npm install @napi-rs/canvas --no-save  (빌드에는 필요 없고, 아이콘을 다시 만들 때만 씀)
-// 디자인: 표지와 같은 검정 가죽 + 흰 링 + 핑크 이탤릭 'D'. 아이콘은 투명 영역이 없어야 하므로 꽉 찬 사각형으로 그림.
+// 디자인: 표지와 같은 검정 가죽 + 점선 테두리 + 핑크 이탤릭 'D' (스프링 없는 노트). 아이콘은 투명 영역이 없어야 하므로 꽉 찬 사각형으로 그림.
 const fs = require('fs');
 const path = require('path');
 const { createCanvas, GlobalFonts } = require('@napi-rs/canvas');
@@ -15,23 +15,11 @@ const x = c.getContext('2d');
 x.fillStyle = '#141414';
 x.fillRect(0, 0, S, S);
 
-// 왼쪽 가장자리에 걸친 스프링(흰 링)
-const n = 7;
-for (let i = 0; i < n; i++) {
-  const y = 130 + i * (764 / (n - 1));
-  x.fillStyle = '#ffffff';
-  x.beginPath();
-  x.roundRect(-60, y - 26, 190, 52, 26);
-  x.fill();
-  x.fillStyle = '#d9d9d9';
-  x.fillRect(-40, y + 10, 150, 6);
-}
-
 // 점선 스티치 테두리
 x.strokeStyle = 'rgba(244,169,196,0.35)';
 x.lineWidth = 5;
 x.setLineDash([22, 16]);
-x.strokeRect(190, 70, 764, 884);
+x.strokeRect(80, 80, 864, 864);
 x.setLineDash([]);
 
 // 핑크 이탤릭 D + 가는 선
@@ -39,8 +27,8 @@ x.fillStyle = '#F4A9C4';
 x.font = '640px PlayfairItalic';
 x.textAlign = 'center';
 x.textBaseline = 'alphabetic';
-x.fillText('D', 590, 690);
-x.fillRect(500, 770, 180, 6);
+x.fillText('D', 512, 690);
+x.fillRect(422, 770, 180, 6);
 
 // 앱스토어는 투명도(알파) 채널이 있는 아이콘을 거절하므로, 알파를 뺀 RGB PNG로 직접 저장
 const zlib = require('zlib');
