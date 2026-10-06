@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LEGACY_KEY, removeEntries } from './storage';
 import { newId } from './stickers';
+import { BuyResult, buyOne, getPurchasedCount, restore } from './purchases';
 import type { Sticker } from './stickers';
 import type { Stroke } from './strokes';
 
@@ -31,7 +32,6 @@ export const newDiary = (year = new Date().getFullYear()): Diary => ({
 });
 
 const DIARIES_KEY = 'ppiyak:diaries';
-const SLOTS_KEY = 'ppiyak:purchased'; // 결제해서 늘린 권수
 
 // 앱을 처음 열 때: 저장된 다이어리가 없으면 첫 다이어리를 만들고, 예전 한 권짜리 데이터가 있으면 거기로 옮김
 async function load(): Promise<{ diaries: Diary[]; purchased: number }> {
@@ -39,8 +39,8 @@ async function load(): Promise<{ diaries: Diary[]; purchased: number }> {
   let purchased = 0;
   try {
     diaries = JSON.parse((await AsyncStorage.getItem(DIARIES_KEY)) ?? '[]');
-    purchased = Number(await AsyncStorage.getItem(SLOTS_KEY)) || 0;
   } catch {}
+  purchased = await getPurchasedCount();
   if (!diaries.length) {
     const first = newDiary();
     try {
@@ -83,12 +83,18 @@ export function useDiaries() {
 
   // 새 다이어리를 만들 수 있는 권수 = 무료 1권 + 결제로 늘린 권수
   const slots = FREE_DIARIES + purchased;
-  // TODO(결제): 실제 인앱결제(StoreKit/RevenueCat) 연결 전까지는 눌렀을 때 바로 권수를 늘리는 임시 동작
-  const buySlot = useCallback(async () => {
-    const next = purchased + 1;
-    setPurchased(next);
-    await AsyncStorage.setItem(SLOTS_KEY, String(next)).catch(() => {});
-  }, [purchased]);
+  // 1권 추가 구매 (실제 결제 또는 테스트 모드는 purchases.ts 참고)
+  const buySlot = useCallback(async (): Promise<BuyResult> => {
+    const r = await buyOne();
+    if (r.ok) setPurchased(r.count);
+    return r;
+  }, []);
+  // 구매 복원: 산 권수를 다시 불러옴
+  const restorePurchases = useCallback(async () => {
+    const n = await restore();
+    setPurchased(n);
+    return n;
+  }, []);
 
-  return { diaries, ready, slots, canAdd: diaries.length < slots, add, update, remove, buySlot };
+  return { diaries, ready, slots, canAdd: diaries.length < slots, add, update, remove, buySlot, restorePurchases };
 }

@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# RevenueCat 키 등 로컬 설정
+.env
