@@ -1,5 +1,8 @@
 import { STICKERS } from './stickerCatalog';
 
+// 오린 윤곽: pts는 사진 기준 0~1 좌표 [x0,y0,x1,y1,...], box는 윤곽을 감싸는 경계 상자 [왼,위,오른,아래]
+export type Cut = { pts: number[]; box: [number, number, number, number] };
+
 // 일기장에 붙은 스티커 하나. 위치/크기는 쪽(page) 크기에 대한 비율이라 기기가 달라도 같은 자리에 붙음
 export type Sticker = {
   id: string;
@@ -11,6 +14,7 @@ export type Sticker = {
   photo?: string; // 사진 스티커: 'file:<이름>.jpg'(앱 문서 폴더/photos) 또는 웹의 data URI. 이때 key는 ''
   aspect?: number; // 화면에 보이는 가로/세로 비율
   imgAspect?: number; // 원본 사진 가로/세로 비율
+  cut?: Cut; // 오린 모양 (없으면 네모 그대로)
 };
 
 export const BASE_SIZE = 0.26; // 배율 1일 때 스티커 너비 = 쪽 너비의 26%

@@ -1,5 +1,5 @@
 // 손글씨 획. 좌표는 쪽(page) 크기에 대한 비율(0~1)이라 기기가 달라도 같은 자리에 그려짐
-export type Tool = 'pen' | 'marker' | 'eraser';
+export type Tool = 'pen' | 'marker' | 'eraser' | 'lasso';
 
 export type Stroke = {
   id: string;

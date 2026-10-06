@@ -1,5 +1,6 @@
 import { memo, useMemo, useRef, useState } from 'react';
 import { Image, PanResponder, StyleSheet, View } from 'react-native';
+import Svg, { ClipPath, Defs, Image as SvgImage, Polygon } from 'react-native-svg';
 import { BASE_SIZE, SCALE_MAX, SCALE_MIN, Sticker, stickerSource } from '../stickers';
 import { photoUri } from '../photos';
 import { theme } from '../theme';
@@ -83,7 +84,9 @@ function StickerItem({ s, selected, pageW, pageH, onSelect, onCommit }: ItemProp
         selected && st.selected,
       ]}
     >
-      {s.photo ? (
+      {s.photo && s.cut ? (
+        <CutPhoto s={s} uri={photoUri(s.photo)} />
+      ) : s.photo ? (
         <View style={st.photoFrame}>
           <Image source={src} style={st.img} resizeMode="cover" />
         </View>
@@ -91,6 +94,30 @@ function StickerItem({ s, selected, pageW, pageH, onSelect, onCommit }: ItemProp
         <Image source={src} style={st.img} resizeMode="contain" />
       )}
     </View>
+  );
+}
+
+// 오린 사진: 흰 윤곽을 아래에 깔고, 그 위에 윤곽대로 자른 사진을 올림
+function CutPhoto({ s, uri }: { s: Sticker; uri: string }) {
+  const cut = s.cut!;
+  const [bx, by, bx1] = cut.box;
+  const bw = bx1 - bx;
+  const ia = s.imgAspect ?? 1;
+  const wv = 1000 / bw; // 사진 전체의 가상 너비 (경계 상자 너비 = 1000)
+  const hv = wv / ia;
+  const poly = cut.pts.reduce((a, v, i) => a + (i % 2 === 0 ? (i ? ' ' : '') + v * wv : ',' + v * hv), '');
+  const id = `clip-${s.id}`;
+  return (
+    <Svg width="100%" height="100%" viewBox={`${bx * wv} ${by * hv} 1000 ${1000 / (s.aspect ?? 1)}`}>
+      <Defs>
+        <ClipPath id={id}>
+          <Polygon points={poly} />
+        </ClipPath>
+      </Defs>
+      <Polygon points={poly} fill="#000" fillOpacity={0.14} stroke="#000" strokeOpacity={0.14} strokeWidth={22} strokeLinejoin="round" transform="translate(5 9)" />
+      <Polygon points={poly} fill="#fff" stroke="#fff" strokeWidth={22} strokeLinejoin="round" />
+      <SvgImage href={{ uri }} x={0} y={0} width={wv} height={hv} preserveAspectRatio="none" clipPath={`url(#${id})`} />
+    </Svg>
   );
 }
 

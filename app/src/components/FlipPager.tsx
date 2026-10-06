@@ -1,6 +1,5 @@
 import { forwardRef, ReactNode, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, PanResponder, StyleSheet, View } from 'react-native';
-import { shiftKey } from '../dates';
 
 // 책장이 넘어가는 방향(회전 부호). 화면에서 책장이 앞으로 들리도록 맞춘 값.
 export const FLIP_SIGN = -1;
@@ -14,8 +13,8 @@ const outIn = input.map((p) => (Math.acos(p) * 180) / Math.PI); // 들어오는 
 export type FlipHandle = { flip: (dir: 1 | -1) => void };
 
 type Props = {
-  current: string; // 지금 보이는 날짜
-  max: string; // 이 날짜보다 미래로는 못 넘김 (오늘)
+  current: string; // 지금 보이는 쪽
+  neighbor: (key: string, dir: 1 | -1) => string | null; // 앞/뒤 쪽 (없으면 null)
   width: number;
   renderPage: (key: string) => ReactNode;
   onChange: (key: string) => void;
@@ -23,19 +22,18 @@ type Props = {
 };
 
 const FlipPager = forwardRef<FlipHandle, Props>(function FlipPager(
-  { current, max, width, renderPage, onChange, onFlipSound },
+  { current, neighbor, width, renderPage, onChange, onFlipSound },
   ref,
 ) {
   const p = useRef(new Animated.Value(0)).current;
   const [incoming, setIncoming] = useState<{ dir: 1 | -1; key: string } | null>(null);
-  const live = useRef({ current, max, width, onChange, onFlipSound });
-  live.current = { current, max, width, onChange, onFlipSound };
+  const live = useRef({ current, neighbor, width, onChange, onFlipSound });
+  live.current = { current, neighbor, width, onChange, onFlipSound };
   const drag = useRef({ dir: 0 as 0 | 1 | -1, key: '', v: 0, busy: false });
 
   const targetOf = (dir: 1 | -1) => {
-    const { current: c, max: m } = live.current;
-    if (dir === 1) return c < m ? shiftKey(c, 1) : null;
-    return shiftKey(c, -1);
+    const { current: c, neighbor: n } = live.current;
+    return n(c, dir);
   };
 
   const settle = (commit: boolean, ms: number) => {

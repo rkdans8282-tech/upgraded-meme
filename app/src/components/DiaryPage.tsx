@@ -1,43 +1,42 @@
 import { memo, useCallback, useRef, useState } from 'react';
 import { Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { PaperTexture } from './PaperTexture';
 import { InkLayer } from './InkLayer';
+import { CutoutModal } from './CutoutModal';
+import { PageHoles } from './PageHoles';
+import { RemoteKey, RemoteMenu } from './RemoteMenu';
 import { StickerLayer } from './StickerLayer';
 import { StickerSheet } from './StickerSheet';
-import { SCALE_MAX, SCALE_MIN, Sticker, newId } from '../stickers';
+import { Cut, SCALE_MAX, SCALE_MIN, Sticker, newId } from '../stickers';
 import { PEN_COLORS, Stroke, Tool, WIDTHS } from '../strokes';
-import { Mood, moods } from '../moods';
-import { labelOf } from '../dates';
-import { pickPhoto } from '../photos';
+import { isGif, pickPhoto } from '../photos';
 import { theme } from '../theme';
 import type { Entry } from '../storage';
 
 const { color, font } = theme;
-export const LINE = 38; // 줄 간격 = 글자 줄 높이
-export const SLOT = 22; // 스프링 한 칸 높이 (겉 스프링과 같은 값)
+export const LINE = 38; // 글자 줄 높이
 
 type Props = {
   dayKey: string;
   entry?: Entry;
-  isToday: boolean;
   onText: (day: string, text: string) => void;
-  onMood: (day: string, mood: Mood) => void;
   onStickers: (day: string, stickers: Sticker[]) => void;
   onStrokes: (day: string, strokes: Stroke[]) => void;
   onScratch: () => void;
-  onFlip: (dir: 1 | -1) => void;
+  onCalendar: (day: string) => void;
+  title?: string; // 날짜 칸을 확대한 화면에서만 왼쪽 위에 작게 보이는 날짜
   holes: number; // 스프링 구멍 개수 (책 겉 스프링과 같은 값)
 };
 
-// 공책 속지 한 장 = 하루
+// 공책 속지 한 장 = 하루. 줄 없는 흰 종이(메모지처럼 자유롭게)
 const NO_STICKERS: Sticker[] = [];
 const NO_STROKES: Stroke[] = [];
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
-function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onStickers, onStrokes, onScratch, onFlip, holes }: Props) {
+function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch, onCalendar, title, holes }: Props) {
   const [areaH, setAreaH] = useState(300);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [sheet, setSheet] = useState(false);
+  const [sheetCat, setSheetCat] = useState<string | undefined>(undefined);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const history = useRef<Sticker[][]>([]); // 되돌리기용 이전 상태들
   const [undoCount, setUndoCount] = useState(0);
@@ -84,11 +83,20 @@ function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onStickers, onS
       setSelectedId(st.id);
     } catch {}
   };
-  const openSheet = () => {
+  const [cutting, setCutting] = useState(false);
+  const applyCut = (cut: Cut) => {
+    const [x0, y0, x1, y1] = cut.box;
+    const ia = selected?.imgAspect ?? 1;
+    patchSelected(() => ({ cut, aspect: ((x1 - x0) * ia) / (y1 - y0), scale: 1.3 }));
+    setCutting(false);
+  };
+  const openSheet = (cat?: string) => {
     Keyboard.dismiss();
     setSelectedId(null);
+    setSheetCat(cat);
     setSheet(true);
   };
+
   // 손글씨(펜) 모드
   const [drawing, setDrawing] = useState(false);
   const [tool, setTool] = useState<Tool>('pen');
@@ -115,43 +123,26 @@ function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onStickers, onS
     setSelectedId(null);
     setDrawing(true);
   };
+
+  const onRemote = (k: RemoteKey) => {
+    if (k === 'pen') startDrawing();
+    else if (k === 'sticker') openSheet(undefined);
+    else if (k === 'tape') openSheet('tape');
+    else if (k === 'photo') addPhoto();
+    else onCalendar(dayKey);
+  };
+
   const [contentH, setContentH] = useState(0);
-  const mood = entry?.mood;
   const total = Math.max(areaH, contentH + LINE);
-  const lines = Math.ceil(total / LINE);
+  const showRemote = !drawing && !selected && !sheet && !cutting;
 
   return (
     <View style={s.page} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-      <PaperTexture />
-      {/* 스프링 구멍 + 왼쪽 여백선 */}
-      <View style={s.margin} pointerEvents="none" />
-      <View style={s.holes} pointerEvents="none">
-        {Array.from({ length: holes }, (_, i) => (
-          <View key={i} style={s.holeSlot}>
-            <View style={s.hole} />
-          </View>
-        ))}
-      </View>
+      <PageHoles holes={holes} />
+      {title ? <Text style={s.title} pointerEvents="none">{title}</Text> : null}
 
-      <View style={s.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.date} numberOfLines={1}>{labelOf(dayKey)}</Text>
-          <View style={s.subRow}>
-            <Text style={s.sub}>{isToday ? '오늘의 일기' : '그날의 일기'}</Text>
-            {mood && <Text style={s.headMood}>{moods.find((m) => m.key === mood)?.emoji}</Text>}
-          </View>
-        </View>
-      </View>
-
-      <ScrollView
-        style={s.area}
-        onLayout={(e) => setAreaH(e.nativeEvent.layout.height)}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView style={[s.area, title ? { marginTop: 56 } : null]} onLayout={(e) => setAreaH(e.nativeEvent.layout.height)} keyboardShouldPersistTaps="handled">
         <View style={{ height: total }}>
-          {Array.from({ length: lines }, (_, i) => (
-            <View key={i} style={[s.rule, { top: (i + 1) * LINE - 8 }]} pointerEvents="none" />
-          ))}
           <TextInput
             style={[s.input, { minHeight: areaH }]}
             multiline
@@ -162,8 +153,6 @@ function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onStickers, onS
               onText(dayKey, t);
             }}
             onContentSizeChange={(e) => setContentH(e.nativeEvent.contentSize.height)}
-            placeholder={'오늘은 어떤 하루였어?\n여기에 자유롭게 적어보세요.'}
-            placeholderTextColor="#CBBFAE"
             selectionColor={color.accent}
             onFocus={() => setSelectedId(null)}
             textAlignVertical="top"
@@ -186,7 +175,7 @@ function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onStickers, onS
       {drawing ? (
         <View style={s.penBar}>
           <View style={s.penRow}>
-            {([['pen', '✏️', '펜'], ['marker', '🖍', '형광펜'], ['eraser', '🧽', '지우개']] as const).map(([k, icon, label]) => (
+            {([['pen', '✏️', '펜'], ['marker', '🖍', '형광펜'], ['eraser', '🧽', '지우개'], ['lasso', '⭕', '옮기기']] as const).map(([k, icon, label]) => (
               <Pressable key={k} onPress={() => setTool(k)} accessibilityRole="button" accessibilityLabel={label} style={[s.toolBtn, tool === k && s.toolBtnOn]}>
                 <Text style={s.toolIcon}>{icon}</Text>
                 <Text style={s.toolLabel}>{label}</Text>
@@ -197,7 +186,7 @@ function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onStickers, onS
               <Text style={s.toolLabel}>되돌리기</Text>
             </Pressable>
           </View>
-          {tool !== 'eraser' && (
+          {(tool === 'pen' || tool === 'marker') && (
             <>
               <View style={s.penRow}>
                 {PEN_COLORS.map((c) => (
@@ -213,16 +202,16 @@ function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onStickers, onS
                   </Pressable>
                 ))}
                 <Pressable onPress={() => setDrawing(false)} accessibilityRole="button" accessibilityLabel="쓰기 끝" style={s.doneBtn}>
-                  <Text style={s.stickerBtnText}>✓ 완료</Text>
+                  <Text style={s.doneText}>✓ 완료</Text>
                 </Pressable>
               </View>
             </>
           )}
-          {tool === 'eraser' && (
+          {(tool === 'eraser' || tool === 'lasso') && (
             <View style={s.penRow}>
-              <Text style={s.eraserHint}>지우고 싶은 글씨 위를 쓱 문지르세요</Text>
+              <Text style={s.eraserHint}>{tool === 'eraser' ? '지우고 싶은 글씨 위를 쓱 문지르세요' : '옮길 글씨를 동그라미로 감싼 뒤, 점선 상자 안을 끌어서 옮기세요'}</Text>
               <Pressable onPress={() => setDrawing(false)} accessibilityRole="button" accessibilityLabel="쓰기 끝" style={s.doneBtn}>
-                <Text style={s.stickerBtnText}>✓ 완료</Text>
+                <Text style={s.doneText}>✓ 완료</Text>
               </Pressable>
             </View>
           )}
@@ -231,7 +220,9 @@ function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onStickers, onS
         <View style={s.editBar}>
           <EditBtn icon="－" label="작게" onPress={() => patchSelected((st) => ({ scale: clamp(st.scale * 0.85, SCALE_MIN, SCALE_MAX) }))} />
           <EditBtn icon="＋" label="크게" onPress={() => patchSelected((st) => ({ scale: clamp(st.scale * 1.18, SCALE_MIN, SCALE_MAX) }))} />
+          {selected.photo && !isGif(selected.photo) && <EditBtn icon="✂️" label="오리기" onPress={() => setCutting(true)} />}
           <EditBtn icon="⟳" label="회전" onPress={() => patchSelected((st) => ({ rot: st.rot + 15 }))} />
+          <EditBtn icon="↩︎" label="되돌리기" disabled={undoCount === 0} onPress={undo} />
           <EditBtn
             icon="🗑"
             label="삭제"
@@ -242,61 +233,20 @@ function DiaryPageBase({ dayKey, entry, isToday, onText, onMood, onStickers, onS
           />
           <EditBtn icon="✓" label="완료" strong onPress={() => setSelectedId(null)} />
         </View>
-      ) : (
-        <View style={s.moodBar}>
-          <View style={s.toolRow}>
-            <Pressable onPress={openSheet} style={s.stickerBtn} accessibilityRole="button" accessibilityLabel="스티커 붙이기">
-              <Text style={s.stickerBtnText}>＋ 스티커</Text>
-            </Pressable>
-            <Pressable onPress={startDrawing} style={s.penBtn} accessibilityRole="button" accessibilityLabel="펜으로 쓰기">
-              <Text style={s.stickerBtnText}>✏️ 펜</Text>
-            </Pressable>
-            <Pressable onPress={addPhoto} style={s.penBtn} accessibilityRole="button" accessibilityLabel="사진 넣기">
-              <Text style={s.stickerBtnText}>🖼 사진</Text>
-            </Pressable>
-            <Pressable onPress={undo} disabled={undoCount === 0} style={[s.undoBtn, undoCount === 0 && { opacity: 0.35 }]} accessibilityRole="button" accessibilityLabel="스티커 되돌리기">
-              <Text style={s.undoText}>↩︎</Text>
-            </Pressable>
-          </View>
-          <View style={s.navRow}>
-            <Pressable onPress={() => onFlip(-1)} style={s.navBtn} accessibilityRole="button" accessibilityLabel="이전 날 보기">
-              <Text style={s.navText}>‹ 이전</Text>
-            </Pressable>
-            <Text style={s.moodTitle} numberOfLines={1}>{isToday ? '오늘 기분' : '그날 기분'}</Text>
-            {isToday ? (
-              <View style={s.navBtn} />
-            ) : (
-              <Pressable onPress={() => onFlip(1)} style={s.navBtn} accessibilityRole="button" accessibilityLabel="다음 날 보기">
-                <Text style={[s.navText, { textAlign: 'right' }]}>다음 ›</Text>
-              </Pressable>
-            )}
-          </View>
-          <View style={s.moodRow}>
-            {moods.map((m) => {
-              const on = mood === m.key;
-              return (
-                <Pressable
-                  key={m.key}
-                  onPress={() => onMood(dayKey, m.key)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`기분 ${m.label}`}
-                  style={[s.moodBtn, on && s.moodBtnOn]}
-                >
-                  <Text style={s.moodEmoji}>{m.emoji}</Text>
-                  <Text style={[s.moodLabel, on && s.moodLabelOn]} numberOfLines={1}>{m.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-      )}
+      ) : null}
 
       {/* 스티커 층: 글 위에 올라가고, 스티커가 없는 곳은 터치가 글상자로 통과 */}
       <View style={StyleSheet.absoluteFill} pointerEvents={drawing ? 'none' : 'box-none'}>
         <StickerLayer stickers={stickers} selectedId={selectedId} pageW={box.w} pageH={box.h} onSelect={setSelectedId} onCommit={commit} />
       </View>
 
-      {sheet && <StickerSheet onPick={addSticker} onClose={() => setSheet(false)} />}
+      {showRemote && <RemoteMenu items={['pen', 'sticker', 'photo', 'tape', 'calendar']} onPick={onRemote} />}
+
+      {cutting && selected?.photo && (
+        <CutoutModal photo={selected.photo} imgAspect={selected.imgAspect ?? 1} onDone={applyCut} onClose={() => setCutting(false)} />
+      )}
+
+      {sheet && <StickerSheet initialCat={sheetCat} onPick={addSticker} onClose={() => setSheet(false)} />}
     </View>
   );
 }
@@ -319,29 +269,18 @@ function EditBtn({ icon, label, onPress, disabled, strong }: { icon: string; lab
 export const DiaryPage = memo(DiaryPageBase);
 
 const s = StyleSheet.create({
-  page: { flex: 1, backgroundColor: color.paper, borderTopRightRadius: 10, borderBottomRightRadius: 10, overflow: 'hidden' },
-  margin: { position: 'absolute', left: theme.pageLeft - 14, top: 0, bottom: 0, width: 2, backgroundColor: color.margin, opacity: 0.8 },
-  holes: { position: 'absolute', left: 14, top: 0, bottom: 0, width: 18, justifyContent: 'space-around' },
-  holeSlot: { height: SLOT, alignItems: 'center', justifyContent: 'center' },
-  hole: { width: 14, height: 14, borderRadius: 7, backgroundColor: '#CDBFA6', opacity: 0.7 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingLeft: theme.pageLeft, paddingRight: 14, paddingTop: 14 },
-  date: { fontFamily: font.bold, fontSize: 26, color: color.text },
-  sub: { fontFamily: font.regular, fontSize: 18, color: color.textSoft, marginTop: -2 },
-  area: { flex: 1, marginTop: 4, paddingLeft: theme.pageLeft, paddingRight: 16 },
-  rule: { position: 'absolute', left: -theme.pageLeft, right: -16, height: 1.5, backgroundColor: color.rule },
+  page: { flex: 1, backgroundColor: color.paper, overflow: 'hidden' },
+  title: { position: 'absolute', left: theme.pageLeft, top: 14, fontFamily: font.bold, fontSize: 26, color: color.text },
+  area: { flex: 1, marginTop: 24, paddingLeft: theme.pageLeft, paddingRight: 16 },
   input: {
     fontFamily: font.regular, fontSize: 23, lineHeight: LINE, color: color.text,
     padding: 0, margin: 0, includeFontPadding: false,
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
   },
-  toolRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  stickerBtn: { minHeight: theme.minTouch, justifyContent: 'center', paddingHorizontal: 10, borderRadius: theme.radius.pill, backgroundColor: color.accent },
-  stickerBtnText: { fontFamily: font.bold, fontSize: 19, color: color.text },
-  penBtn: { minHeight: theme.minTouch, justifyContent: 'center', paddingHorizontal: 10, borderRadius: theme.radius.pill, backgroundColor: color.accentSoft },
   penBar: {
     zIndex: 5, elevation: 5, position: 'relative',
     gap: 6, paddingLeft: 54, paddingRight: 12, paddingTop: 8, paddingBottom: 14,
-    borderTopWidth: 1.5, borderTopColor: color.rule, backgroundColor: color.paper,
+    borderTopWidth: 1, borderTopColor: '#E4E4E4', backgroundColor: color.paper,
   },
   penRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   toolBtn: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 2.5, borderColor: 'transparent' },
@@ -354,31 +293,14 @@ const s = StyleSheet.create({
   widthBtn: { flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 2.5, borderColor: 'transparent', paddingHorizontal: 14 },
   widthDot: { width: '100%', borderRadius: 6 },
   doneBtn: { minHeight: theme.minTouch, minWidth: 104, paddingHorizontal: 12, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: theme.radius.pill, backgroundColor: color.accent },
+  doneText: { fontFamily: font.bold, fontSize: 19, color: color.text },
   eraserHint: { flex: 1, fontFamily: font.regular, fontSize: 17, color: color.textSoft },
-  undoBtn: { minHeight: theme.minTouch, minWidth: theme.minTouch, alignItems: 'center', justifyContent: 'center', marginLeft: 'auto' },
-  undoText: { fontFamily: font.bold, fontSize: 17, color: color.textSoft },
   editBar: {
     flexDirection: 'row', gap: 6, paddingLeft: 54, paddingRight: 12, paddingTop: 8, paddingBottom: 14,
-    borderTopWidth: 1.5, borderTopColor: color.rule, backgroundColor: color.paper,
+    borderTopWidth: 1, borderTopColor: '#E4E4E4', backgroundColor: color.paper,
   },
   editBtn: { flex: 1, minHeight: 60, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: color.accentSoft },
   editBtnStrong: { backgroundColor: color.accent },
   editIcon: { fontSize: 22, color: color.text },
-  editLabel: { fontFamily: font.bold, fontSize: 13, color: color.text },
-  moodBar: { paddingLeft: 54, paddingRight: 12, paddingBottom: 12, paddingTop: 6 },
-  navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
-  navBtn: { minWidth: 70, minHeight: theme.minTouch, justifyContent: 'center' },
-  navText: { fontFamily: font.bold, fontSize: 20, color: color.text },
-  moodTitle: { fontFamily: font.bold, fontSize: 18, color: color.textSoft, flexShrink: 0 },
-  moodRow: { flexDirection: 'row', gap: 6 },
-  moodBtn: {
-    flex: 1, minHeight: theme.minTouch + 24, alignItems: 'center', justifyContent: 'center',
-    borderRadius: 16, borderWidth: 2.5, borderColor: 'transparent', paddingVertical: 4,
-  },
-  moodBtnOn: { borderColor: color.accent, backgroundColor: color.accentSoft },
-  moodEmoji: { fontSize: 30 },
-  subRow: { flexDirection: 'row', alignItems: 'center' },
-  headMood: { fontSize: 24, marginLeft: 8 },
-  moodLabel: { fontFamily: font.regular, fontSize: 14, color: color.textSoft },
-  moodLabelOn: { fontFamily: font.bold, color: color.text },
+  editLabel: { fontFamily: font.bold, fontSize: 12, color: color.text },
 });
