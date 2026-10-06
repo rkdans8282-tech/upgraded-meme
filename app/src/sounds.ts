@@ -2,8 +2,11 @@ import { useMemo, useRef } from 'react';
 import { useAudioPlayer, AudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 
-const play = (p: AudioPlayer) => {
+const FLIP_VOLUME = 0.35; // 책장 넘기는 소리 크기 (0~1, 낮출수록 작아짐)
+
+const play = (p: AudioPlayer, volume = 1) => {
   try {
+    p.volume = volume;
     p.seekTo(0);
     p.play();
   } catch {}
@@ -21,7 +24,7 @@ export function useSounds() {
   return useMemo(
     () => ({
       flip: () => {
-        play(flipP);
+        play(flipP, FLIP_VOLUME);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       },
       scratch: () => {

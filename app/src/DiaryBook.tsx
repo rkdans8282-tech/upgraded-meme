@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { Animated, Easing, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FlipPager, { FLIP_SIGN } from './components/FlipPager';
@@ -81,16 +81,42 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
   const onText = useCallback((d: string, text: string) => update(d, { text }), [update]);
   const onStickers = useCallback((d: string, stickers: Sticker[]) => update(d, { stickers }), [update]);
   const onStrokes = useCallback((d: string, strokes: Stroke[]) => update(d, { strokes }), [update]);
+  // 방문한 쪽 기록: 쪽을 옮길 때마다 직전 쪽을 쌓아 두었다가 '뒤로'로 한 단계씩 되돌아감
+  const trail = useRef<string[]>([]);
+  const pageRef = useRef(page);
+  pageRef.current = page;
+  const go = useCallback((k: string) => {
+    const cur = pageRef.current;
+    if (k === cur) return;
+    trail.current = [...trail.current.slice(-39), cur];
+    setPage(k);
+  }, []);
   const goCalendar = useCallback(() => {
     sounds.flip();
-    setPage(homeCal());
-  }, [sounds, homeCal]);
+    go(homeCal());
+  }, [sounds, homeCal, go]);
+  // 뒤로: 열린 목록/확대 화면 → 직전에 본 쪽 → (달력에서는) 표지 → 책장
+  const goBack = useCallback(() => {
+    if (indexOpen) return setIndexOpen(false);
+    if (zoom) return closeZoom();
+    const prev = trail.current.pop();
+    if (prev) {
+      sounds.flip();
+      setPage(prev);
+      return;
+    }
+    if (phase === 'book') {
+      trail.current = [];
+      return animateCover(0, 'cover');
+    }
+    if (phase === 'cover') goShelf();
+  }, [indexOpen, zoom, closeZoom, sounds, phase, goShelf]);
   const nav = useCallback((key: string, dir: 1 | -1) => neighbor(key, dir, year), [year]);
 
   const renderPage = useCallback(
     (key: string) =>
       isCal(key) ? (
-        <CalendarPage monthKey={key} entries={entries} today={today} holes={holes} pageAspect={box.w / (box.h || 1)} onPick={openZoom} onShelf={goShelf} />
+        <CalendarPage monthKey={key} entries={entries} today={today} holes={holes} pageAspect={box.w / (box.h || 1)} onPick={openZoom} onShelf={goShelf} onNotebook={openIndex} />
       ) : (
         <DiaryPage
           dayKey={key}
@@ -128,6 +154,9 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
       <StatusBar style="light" />
       <SafeAreaView style={s.desk}>
         <KeyboardAvoidingView style={s.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <Pressable onPress={goBack} style={s.back} hitSlop={8} accessibilityRole="button" accessibilityLabel="뒤로 가기">
+            <Text style={s.backText}>‹ {phase === 'cover' ? '책장' : '뒤로'}</Text>
+          </Pressable>
           <View style={s.frame}>
             <View ref={bookRef} collapsable={false} style={s.book} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
               {/* 책 두께(겹쳐진 종이 옆면) */}
@@ -141,7 +170,7 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
                     neighbor={nav}
                     width={box.w}
                     renderPage={renderPage}
-                    onChange={setPage}
+                    onChange={go}
                     onFlipSound={sounds.flip}
                   />
                 )}
@@ -152,7 +181,7 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
                     current={page}
                     onPick={(k) => {
                       sounds.flip();
-                      setPage(k);
+                      go(k);
                       setIndexOpen(false);
                     }}
                     onClose={() => setIndexOpen(false)}
@@ -188,7 +217,7 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
                   ]}
                   pointerEvents={phase === 'cover' ? 'auto' : 'none'}
                 >
-                  <Cover cover={diary.cover} title={diary.title} year={diary.year} w={box.w} h={box.h} onOpen={() => animateCover(1, 'book')} onShelf={goShelf} />
+                  <Cover cover={diary.cover} title={diary.title} year={diary.year} w={box.w} h={box.h} onOpen={() => animateCover(1, 'book')} />
                 </Animated.View>
               )}
 
@@ -219,7 +248,9 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
 const s = StyleSheet.create({
   fill: { flex: 1 },
   desk: { flex: 1, backgroundColor: color.desk },
-  frame: { flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center', paddingLeft: 34, paddingRight: 18, paddingVertical: 18 },
+  frame: { flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center', paddingLeft: 34, paddingRight: 18, paddingTop: 52, paddingBottom: 18 },
+  back: { position: 'absolute', top: 6, right: 14, zIndex: 20, minHeight: 40, paddingHorizontal: 8, justifyContent: 'center' },
+  backText: { fontFamily: theme.font.regular, fontSize: 16, color: '#E6E6E6' },
   book: { flex: 1 },
   edge: { position: 'absolute', left: 3, top: 3, borderRadius: 0 },
   pageBox: { ...StyleSheet.absoluteFill, backgroundColor: color.paper },

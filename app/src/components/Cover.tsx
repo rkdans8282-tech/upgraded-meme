@@ -56,9 +56,9 @@ export function CoverArt({ cover, title, year, w, h, bare, children }: ArtProps)
 
 // 책 겉표지: 탭하면 열림
 export function Cover({
-  cover, title, year, w, h, onOpen, onShelf,
+  cover, title, year, w, h, onOpen,
 }: {
-  cover: CoverStyle; title: string; year: number; w: number; h: number; onOpen: () => void; onShelf: () => void;
+  cover: CoverStyle; title: string; year: number; w: number; h: number; onOpen: () => void;
 }) {
   const tc = cover.titleColor;
   return (
@@ -67,9 +67,6 @@ export function Cover({
         <View style={s.openBtn} pointerEvents="none">
           <Text style={[s.openText, { color: tc, borderColor: tc }]}>OPEN</Text>
         </View>
-        <Pressable onPress={onShelf} style={s.shelfBtn} accessibilityRole="button" accessibilityLabel="책장으로 돌아가기" hitSlop={8}>
-          <Text style={[s.shelfText, { color: tc }]}>‹ 책장</Text>
-        </Pressable>
       </CoverArt>
     </Pressable>
   );
@@ -82,6 +79,4 @@ const s = StyleSheet.create({
     fontFamily: font.serif, fontSize: 13, letterSpacing: 4, borderWidth: 1,
     paddingHorizontal: 26, paddingVertical: 10, borderRadius: theme.radius.pill, overflow: 'hidden',
   },
-  shelfBtn: { position: 'absolute', top: 14, left: 62, paddingVertical: 8, paddingHorizontal: 8, opacity: 0.85 },
-  shelfText: { fontFamily: font.regular, fontSize: 14 },
 });

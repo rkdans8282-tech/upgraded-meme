@@ -1,5 +1,5 @@
 import { memo, useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Mini } from './CalendarPage';
 import { MEMO_PAGES } from '../book';
 import { theme } from '../theme';
@@ -31,6 +31,12 @@ const Cell = memo(function Cell({ no, e, aspect, on, onPress }: { no: number; e?
 // 공책 300장 목록: 쓴 쪽은 작게 미리 보이고, 누르면 그 쪽으로 이동
 function PageIndexBase({ entries, aspect, current, onPick, onClose }: Props) {
   const [onlyWritten, setOnlyWritten] = useState(false);
+  const [query, setQuery] = useState('');
+  const target = Number(query);
+  const valid = Number.isInteger(target) && target >= 1 && target <= MEMO_PAGES;
+  const go = () => {
+    if (valid) onPick(`memo:${target}`);
+  };
   const written = useMemo(() => {
     const out: number[] = [];
     for (let n = 1; n <= MEMO_PAGES; n++) if (hasContent(entries[`memo:${n}`])) out.push(n);
@@ -50,6 +56,22 @@ function PageIndexBase({ entries, aspect, current, onPick, onClose }: Props) {
         </Pressable>
         <Pressable onPress={onClose} style={s.close} accessibilityRole="button" accessibilityLabel="목록 닫기">
           <Text style={s.chipText}>닫기 ✕</Text>
+        </Pressable>
+      </View>
+      <View style={s.search}>
+        <TextInput
+          style={s.searchInput}
+          value={query}
+          onChangeText={(t) => setQuery(t.replace(/[^0-9]/g, '').slice(0, 3))}
+          onSubmitEditing={go}
+          keyboardType="number-pad"
+          returnKeyType="go"
+          placeholder={`쪽 번호로 바로 가기 (1~${MEMO_PAGES})`}
+          placeholderTextColor="#B0B0B0"
+          accessibilityLabel="쪽 번호 입력"
+        />
+        <Pressable onPress={go} disabled={!valid} style={[s.goBtn, !valid && { opacity: 0.35 }]} accessibilityRole="button" accessibilityLabel="입력한 쪽으로 이동">
+          <Text style={s.goText}>이동</Text>
         </Pressable>
       </View>
       {data.length === 0 ? (
@@ -82,6 +104,10 @@ const s = StyleSheet.create({
   chipOn: { backgroundColor: color.accent, borderColor: color.accent },
   close: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 12, borderRadius: theme.radius.pill, backgroundColor: color.accentSoft },
   chipText: { fontFamily: font.bold, fontSize: 15, color: color.text },
+  search: { flexDirection: 'row', gap: 8, paddingLeft: 52, paddingRight: 10, paddingBottom: 10 },
+  searchInput: { flex: 1, minHeight: 42, borderRadius: 10, borderWidth: 1, borderColor: '#DCDCDC', paddingHorizontal: 12, fontFamily: font.regular, fontSize: 15, color: color.text, backgroundColor: '#FAFAFA' },
+  goBtn: { minWidth: 64, minHeight: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: color.accent },
+  goText: { fontFamily: font.bold, fontSize: 15, color: color.text },
   list: { paddingLeft: 50, paddingRight: 10, paddingBottom: 20 },
   cellWrap: { flex: 1 / COLS, padding: 4, alignItems: 'center' },
   cell: { width: '100%', backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCDCDC', overflow: 'hidden' },
