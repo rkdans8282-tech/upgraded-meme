@@ -10,7 +10,7 @@ import { Cover } from './components/Cover';
 import { PageIndex } from './components/PageIndex';
 import type { Diary } from './diaries';
 import { MEMO_PAGES, calKeyOf, isCal, memoNo, neighbor } from './book';
-import { fromKey, todayKey } from './dates';
+import { todayKey } from './dates';
 import { useEntries } from './useEntries';
 import { useSounds } from './sounds';
 import { theme } from './theme';
@@ -147,7 +147,6 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
       { scale: zoomAnim.interpolate({ inputRange: [0, 1], outputRange: [ZOOM_FROM, 1] }) },
     ],
   };
-  const zoomTitle = zoom ? `${fromKey(zoom.day).getMonth() + 1}월 ${fromKey(zoom.day).getDate()}일` : '';
 
   return (
     <>
@@ -191,7 +190,7 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
                   <Animated.View style={[StyleSheet.absoluteFill, s.zoomPage, zoomStyle]}>
                     <DiaryPage
                       dayKey={zoom.day}
-                      title={zoomTitle}
+                      dateLabel={zoom.day}
                       entry={entries[zoom.day]}
                       onText={onText}
                       onStickers={onStickers}

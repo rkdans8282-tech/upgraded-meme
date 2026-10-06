@@ -9,6 +9,7 @@ import { StickerSheet } from './StickerSheet';
 import { Cut, SCALE_MAX, SCALE_MIN, Sticker, newId } from '../stickers';
 import { PEN_COLORS, Stroke, Tool, WIDTHS } from '../strokes';
 import { isGif, pickPhoto } from '../photos';
+import { fromKey } from '../dates';
 import { theme } from '../theme';
 import type { Entry } from '../storage';
 
@@ -27,7 +28,7 @@ type Props = {
   onShelf?: () => void; // 책장으로 돌아가기 (둥근 리모컨 메뉴)
   pageLabel?: string; // 공책 쪽 번호 ('12 / 300')
   onIndex?: () => void; // 쪽 번호를 누르면 목록 열기
-  title?: string; // 날짜 칸을 확대한 화면에서만 왼쪽 위에 작게 보이는 날짜
+  dateLabel?: string; // 날짜 칸을 확대한 화면에서만, 날짜('2026-10-05')를 테두리 상자로 왼쪽 위에 보여줌
   transparent?: boolean; // 표지 꾸미기: 종이 배경 없이 위에 스티커·손글씨만 올림 (글상자도 없음)
   remoteItems?: RemoteKey[];
   holes: number; // 스프링 구멍 개수 (책 겉 스프링과 같은 값)
@@ -38,7 +39,7 @@ const NO_STICKERS: Sticker[] = [];
 const NO_STROKES: Stroke[] = [];
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
-function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch, onCalendar, onSave, onShelf, pageLabel, onIndex, title, transparent, remoteItems, holes }: Props) {
+function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch, onCalendar, onSave, onShelf, pageLabel, onIndex, dateLabel, transparent, remoteItems, holes }: Props) {
   const [areaH, setAreaH] = useState(300);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [sheet, setSheet] = useState(false);
@@ -147,9 +148,10 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
   return (
     <View style={[s.page, transparent && { backgroundColor: 'transparent' }]} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       <PageHoles holes={holes} />
-      {title ? <Text style={s.title} pointerEvents="none">{title}</Text> : null}
+      {dateLabel ? <View style={s.frame} pointerEvents="none" /> : null}
+      {dateLabel ? <DateTag dayKey={dateLabel} /> : null}
 
-      {!transparent && <ScrollView style={[s.area, title ? { marginTop: 56 } : null]} onLayout={(e) => setAreaH(e.nativeEvent.layout.height)} keyboardShouldPersistTaps="handled">
+      {!transparent && <ScrollView style={[s.area, dateLabel ? { marginTop: 92, paddingLeft: theme.pageLeft + 12, paddingRight: 24 } : null]} onLayout={(e) => setAreaH(e.nativeEvent.layout.height)} keyboardShouldPersistTaps="handled">
         <View style={{ height: total }}>
           <TextInput
             style={[s.input, { minHeight: areaH }]}
@@ -275,6 +277,24 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
   );
 }
 
+const MONTHS = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+const WEEKDAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+
+// 날짜 상자: 가는 테두리 안에 큰 숫자 + 영문 월/요일 (표지와 같은 분위기)
+function DateTag({ dayKey }: { dayKey: string }) {
+  const d = fromKey(dayKey);
+  return (
+    <View style={s.dateTag} pointerEvents="none">
+      <Text style={s.dateDay}>{d.getDate()}</Text>
+      <View style={s.dateRule} />
+      <View>
+        <Text style={s.dateMonth}>{MONTHS[d.getMonth()]}</Text>
+        <Text style={s.dateDow}>{WEEKDAYS[d.getDay()]}</Text>
+      </View>
+    </View>
+  );
+}
+
 function EditBtn({ icon, label, onPress, disabled, strong }: { icon: string; label: string; onPress: () => void; disabled?: boolean; strong?: boolean }) {
   return (
     <Pressable
@@ -294,9 +314,18 @@ export const DiaryPage = memo(DiaryPageBase);
 
 const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: color.paper, overflow: 'hidden' },
+  dateTag: {
+    position: 'absolute', left: theme.pageLeft + 6, top: 16, flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, borderColor: '#2B2B2B', backgroundColor: color.paper, paddingVertical: 7, paddingHorizontal: 12,
+  },
+  // 페이지를 두른 가는 선. 날짜 상자가 윗선에 걸쳐 있어서 머리말처럼 보임
+  frame: { position: 'absolute', left: theme.pageLeft - 8, right: 12, top: 43, bottom: 16, borderWidth: 1, borderColor: '#B9B9B9' },
+  dateDay: { fontFamily: font.serif, fontSize: 34, lineHeight: 40, color: '#2B2B2B', minWidth: 22, textAlign: 'center' },
+  dateRule: { width: 1, alignSelf: 'stretch', backgroundColor: '#2B2B2B', opacity: 0.35, marginHorizontal: 11 },
+  dateMonth: { fontFamily: font.bold, fontSize: 11, letterSpacing: 2.4, color: '#2B2B2B' },
+  dateDow: { fontFamily: font.regular, fontSize: 10, letterSpacing: 2, color: '#8A8A8A', marginTop: 3 },
   badge: { position: 'absolute', left: 52, bottom: 24, minHeight: 36, paddingHorizontal: 10, justifyContent: 'center' },
   badgeText: { fontFamily: font.regular, fontSize: 15, color: '#A8A8A8' },
-  title: { position: 'absolute', left: theme.pageLeft, top: 14, fontFamily: font.bold, fontSize: 26, color: color.text },
   area: { flex: 1, marginTop: 24, paddingLeft: theme.pageLeft, paddingRight: 16 },
   input: {
     fontFamily: font.note, fontSize: 23, lineHeight: LINE, color: color.text,
