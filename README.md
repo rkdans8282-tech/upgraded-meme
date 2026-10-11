@@ -1,4 +1,4 @@
-# 📔 다이어리
+# 📔 하루페이퍼 (Haru Paper)
 
 파스텔 베이지 스프링 노트 느낌의 아이폰·아이패드용 다이어리 앱 (Expo / React Native).
 기획은 [PLAN.md](PLAN.md) 참고.
