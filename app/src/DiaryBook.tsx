@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { Animated, Easing, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FlipPager, { FLIP_SIGN } from './components/FlipPager';
@@ -14,7 +14,6 @@ import { useEntries } from './useEntries';
 import { useSounds } from './sounds';
 import { theme } from './theme';
 import type { Sticker } from './stickers';
-import type { Layout } from './layouts';
 import type { Stroke } from './strokes';
 
 const { color } = theme;
@@ -34,17 +33,6 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
   const [box, setBox] = useState({ w: 0, h: 0 });
   const coverAnim = useRef(new Animated.Value(0)).current;
   const bookRef = useRef<View>(null);
-
-  // 키보드가 열려 있는 동안(글 쓰는 중)에는 밀어서 책장 넘기기를 끔
-  const [kbOpen, setKbOpen] = useState(false);
-  useEffect(() => {
-    const a = Keyboard.addListener('keyboardDidShow', () => setKbOpen(true));
-    const b = Keyboard.addListener('keyboardDidHide', () => setKbOpen(false));
-    return () => {
-      a.remove();
-      b.remove();
-    };
-  }, []);
 
   const holes = 0; // 스프링 구멍 개수 (스프링 없는 노트: 0)
 
@@ -89,7 +77,6 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
     onBack();
   }, [flush, onBack]);
 
-  const onLayout = useCallback((d: string, layout: Layout) => update(d, { layout }), [update]);
   const onText = useCallback((d: string, text: string) => update(d, { text }), [update]);
   const onStickers = useCallback((d: string, stickers: Sticker[]) => update(d, { stickers }), [update]);
   const onStrokes = useCallback((d: string, strokes: Stroke[]) => update(d, { strokes }), [update]);
@@ -129,9 +116,10 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
   const renderPage = useCallback(
     (key: string) =>
       isCal(key) ? (
-        <CalendarPage monthKey={key} entries={entries} today={today} holes={holes} pageAspect={box.w / (box.h || 1)} onPick={openZoom} onShelf={goShelf} onNotebook={openIndex} />
+        <CalendarPage key={key} monthKey={key} entries={entries} today={today} holes={holes} pageAspect={box.w / (box.h || 1)} onPick={openZoom} onShelf={goShelf} onNotebook={openIndex} />
       ) : (
         <DiaryPage
+          key={key}
           dayKey={key}
           entry={entries[key]}
           onText={onText}
@@ -141,14 +129,12 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
           onCalendar={goCalendar}
           onSave={onSave}
           onShelf={goShelf}
-          layout={entries[key]?.layout}
-          onLayout={onLayout}
           pageLabel={`${memoNo(key)} / ${MEMO_PAGES}`}
           onIndex={openIndex}
           holes={holes}
         />
       ),
-    [entries, today, onText, onStickers, onStrokes, sounds.scratch, goCalendar, openZoom, goShelf, onSave, onLayout, openIndex, holes, box],
+    [entries, today, onText, onStickers, onStrokes, sounds.scratch, goCalendar, openZoom, goShelf, onSave, openIndex, holes, box],
   );
 
   if (!ready) return <View style={{ flex: 1, backgroundColor: color.desk }} />;
@@ -167,7 +153,8 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
     <>
       <StatusBar style="light" />
       <SafeAreaView style={s.desk}>
-        <KeyboardAvoidingView style={s.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {/* 키보드가 올라와도 종이 크기는 그대로 (스티커·손글씨가 찌그러지지 않게). 글 칸이 알아서 위로 스크롤됨 */}
+        <View style={s.fill}>
           <Pressable onPress={goBack} style={s.back} hitSlop={8} accessibilityRole="button" accessibilityLabel="뒤로 가기">
             <Text style={s.backText}>‹ {phase === 'cover' ? '책장' : '뒤로'}</Text>
           </Pressable>
@@ -186,7 +173,6 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
                     renderPage={renderPage}
                     onChange={go}
                     onFlipSound={sounds.flip}
-                    locked={kbOpen}
                   />
                 )}
                 {indexOpen && (
@@ -205,6 +191,7 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
                 {zoom && (
                   <Animated.View style={[StyleSheet.absoluteFill, s.zoomPage, zoomStyle]}>
                     <DiaryPage
+                      key={zoom.day}
                       dayKey={zoom.day}
                       dateLabel={zoom.day}
                       entry={entries[zoom.day]}
@@ -244,7 +231,7 @@ export function DiaryBook({ diary, onBack }: { diary: Diary; onBack: () => void 
 
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </SafeAreaView>
     </>
   );

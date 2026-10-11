@@ -18,10 +18,11 @@ type ItemProps = {
   editing: boolean; // 글상자 글을 고치는 중이면 끌어서 옮기기를 끔
   onEditText: (id: string, text: string) => void;
   shift?: [number, number]; // 올가미로 묶어서 옮기는 중일 때 임시로 더해지는 이동량(쪽 크기 대비)
+  inputAccessoryViewID?: string; // 아이폰 키보드 위 '완료' 막대
 };
 
 // 스티커 하나: 한 손가락 = 이동, 두 손가락 = 크기·회전
-function StickerItem({ s, selected, pageW, pageH, onSelect, onCommit, editing, onEditText, shift }: ItemProps) {
+function StickerItem({ s, selected, pageW, pageH, onSelect, onCommit, editing, onEditText, shift, inputAccessoryViewID }: ItemProps) {
   const [live, setLive] = useState<Pose | null>(null);
   const [textH, setTextH] = useState(40);
   const cur: Pose = live ?? s;
@@ -93,7 +94,8 @@ function StickerItem({ s, selected, pageW, pageH, onSelect, onCommit, editing, o
           <TextInput
             autoFocus
             multiline
-            value={s.text}
+            defaultValue={s.text} // 한글 입력이 끊기지 않게 입력칸이 글자를 직접 들고 있음
+            inputAccessoryViewID={inputAccessoryViewID}
             onChangeText={(t) => onEditText(s.id, t)}
             placeholder="글을 적어요"
             placeholderTextColor="#B8B8B8"
@@ -168,11 +170,12 @@ type LayerProps = {
   editingId?: string | null;
   onEditText?: (id: string, text: string) => void;
   drag?: { ids: string[]; dx: number; dy: number } | null; // 올가미로 묶어서 끌고 있는 중
+  inputAccessoryViewID?: string;
 };
 
 const noopEdit = () => {};
 
-function StickerLayerBase({ stickers, selectedId, pageW, pageH, onSelect, onCommit, editingId, onEditText, drag }: LayerProps) {
+function StickerLayerBase({ stickers, selectedId, pageW, pageH, onSelect, onCommit, editingId, onEditText, drag, inputAccessoryViewID }: LayerProps) {
   if (!pageW || !pageH) return null;
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -188,6 +191,7 @@ function StickerLayerBase({ stickers, selectedId, pageW, pageH, onSelect, onComm
           editing={s.id === editingId}
           onEditText={onEditText ?? noopEdit}
           shift={drag && drag.ids.includes(s.id) ? [drag.dx, drag.dy] : undefined}
+          inputAccessoryViewID={inputAccessoryViewID}
         />
       ))}
     </View>

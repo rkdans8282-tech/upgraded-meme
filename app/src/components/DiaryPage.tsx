@@ -1,11 +1,10 @@
 import { memo, useCallback, useRef, useState } from 'react';
-import { Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { InputAccessoryView, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { GroupDrag, InkLayer } from './InkLayer';
 import { CutoutModal } from './CutoutModal';
 import { PageHoles } from './PageHoles';
+import { FLIP_EDGE } from './FlipPager';
 import { RemoteKey, RemoteMenu } from './RemoteMenu';
-import { LayoutSheet } from './LayoutSheet';
-import { Layout, segments } from '../layouts';
 import { StickerLayer } from './StickerLayer';
 import { StickerSheet } from './StickerSheet';
 import { Cut, SCALE_MAX, SCALE_MIN, Sticker, newId } from '../stickers';
@@ -27,8 +26,6 @@ type Props = {
   onScratch: () => void;
   onCalendar: (day: string) => void;
   onSave: () => void;
-  layout?: Layout; // 공책 쪽의 칸 나누기 (구분선)
-  onLayout?: (day: string, layout: Layout) => void;
   onShelf?: () => void; // 책장으로 돌아가기 (둥근 리모컨 메뉴)
   pageLabel?: string; // 공책 쪽 번호 ('12 / 300')
   onIndex?: () => void; // 쪽 번호를 누르면 목록 열기
@@ -43,11 +40,10 @@ const NO_STICKERS: Sticker[] = [];
 const NO_STROKES: Stroke[] = [];
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
-function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch, onCalendar, onSave, onShelf, layout, onLayout, pageLabel, onIndex, dateLabel, transparent, remoteItems, holes }: Props) {
+function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch, onCalendar, onSave, onShelf, pageLabel, onIndex, dateLabel, transparent, remoteItems, holes }: Props) {
   const [areaH, setAreaH] = useState(300);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [sheet, setSheet] = useState(false);
-  const [layoutSheet, setLayoutSheet] = useState(false);
   const [sheetCat, setSheetCat] = useState<string | undefined>(undefined);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const history = useRef<Sticker[][]>([]); // 되돌리기용 이전 상태들
@@ -106,6 +102,7 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
   };
   const onEditText = useCallback((id: string, text: string) => onStickers(dayKey, stickers.map((st) => (st.id === id ? { ...st, text } : st))), [onStickers, dayKey, stickers]);
   const finishEdit = () => {
+    Keyboard.dismiss();
     const st = stickers.find((x) => x.id === editingId);
     setEditingId(null);
     if (st && !st.text?.trim()) {
@@ -163,11 +160,6 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
     else if (k === 'tape') openSheet('tape');
     else if (k === 'photo') addPhoto();
     else if (k === 'text') addText();
-    else if (k === 'layout') {
-      Keyboard.dismiss();
-      setSelectedId(null);
-      setLayoutSheet(true);
-    }
     else if (k === 'save') onSave();
     else if (k === 'shelf') onShelf?.();
     else onCalendar(dayKey);
@@ -175,35 +167,47 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
 
   const [contentH, setContentH] = useState(0);
   const total = Math.max(areaH, contentH + LINE);
-  const showRemote = !drawing && !selected && !sheet && !layoutSheet && !cutting && !editingId;
+  const showRemote = !drawing && !selected && !sheet && !cutting && !editingId;
+
+  // 키보드: 종이의 빈 곳(글 아래, 여백, 오른쪽 끝)을 누르면 내려가고, 키보드가 없을 때 누르면 이어서 쓰기
+  const inputRef = useRef<TextInput>(null);
+  const wasTyping = useRef(false); // 손가락을 댄 순간 쓰는 중이었는지 (떼는 순간에는 이미 입력칸이 풀려 있을 수 있음)
+  const tapPaper = () => {
+    if (wasTyping.current) Keyboard.dismiss();
+    else inputRef.current?.focus();
+  };
+  const selectSticker = useCallback((id: string) => {
+    Keyboard.dismiss();
+    setSelectedId(id);
+  }, []);
+  const kbBarId = `kb-${dayKey}`; // 아이폰 키보드 위 '완료' 막대
+  const hasKbBar = Platform.OS === 'ios';
 
   return (
     <View style={[s.page, transparent && { backgroundColor: 'transparent' }]} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       <PageHoles holes={holes} />
-      {layout && layout !== 'none' ? (
-        <View style={s.panels} pointerEvents="none">
-          {segments(layout).map(([x0, y0, x1, y1], i) => (
-            <View
-              key={i}
-              style={{
-                position: 'absolute', backgroundColor: '#B9B9B9',
-                left: `${x0 * 100}%`, top: `${y0 * 100}%`,
-                width: x0 === x1 ? 1 : `${(x1 - x0) * 100}%`, height: y0 === y1 ? 1 : `${(y1 - y0) * 100}%`,
-              }}
-            />
-          ))}
-        </View>
-      ) : null}
+      {/* 글 칸 바깥 종이를 누르면 키보드가 내려감 */}
+      {!transparent && <Pressable style={StyleSheet.absoluteFill} onPress={() => Keyboard.dismiss()} accessible={false} />}
       {dateLabel ? <View style={s.frame} pointerEvents="none" /> : null}
       {dateLabel ? <DateTag dayKey={dateLabel} /> : null}
 
-      {!transparent && <ScrollView style={[s.area, dateLabel ? { marginTop: 92, paddingLeft: 26, paddingRight: 24 } : null]} onLayout={(e) => setAreaH(e.nativeEvent.layout.height)} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-        <View style={{ height: total }}>
+      {/* 공책 쪽은 오른쪽 끝(FLIP_EDGE)을 비워 둠: 그 자리를 잡고 밀어야 책장이 넘어감 */}
+      {!transparent && <ScrollView
+        style={[s.area, pageLabel ? { marginRight: FLIP_EDGE } : null, dateLabel ? { marginTop: 92, paddingLeft: 26, paddingRight: 24 } : null]}
+        onLayout={(e) => setAreaH(e.nativeEvent.layout.height)}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        automaticallyAdjustKeyboardInsets
+      >
+        {/* 글 아래 빈 종이를 누르면: 키보드가 있으면 내리고, 없으면 글 끝에 이어서 쓰기 */}
+        <Pressable style={{ height: total }} onPressIn={() => (wasTyping.current = !!inputRef.current?.isFocused())} onPress={tapPaper} accessible={false}>
           <TextInput
-            style={[s.input, { minHeight: areaH }]}
+            ref={inputRef}
+            style={s.input}
             multiline
             scrollEnabled={false}
-            value={entry?.text ?? ''}
+            // 한글 입력이 끊기거나 늦게 따라오지 않도록 글자는 입력칸이 직접 들고 있고, 바뀔 때 저장만 함
+            defaultValue={entry?.text ?? ''}
             onChangeText={(t) => {
               onScratch();
               onText(dayKey, t);
@@ -212,8 +216,9 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
             selectionColor={color.accent}
             onFocus={() => setSelectedId(null)}
             textAlignVertical="top"
+            inputAccessoryViewID={hasKbBar ? kbBarId : undefined}
           />
-        </View>
+        </Pressable>
       </ScrollView>}
 
       {/* 손글씨 층: 펜 모드일 때만 터치를 받음. 도구 막대보다 아래 층이라 막대는 항상 눌림 */}
@@ -314,7 +319,7 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
 
       {/* 스티커 층: 글 위에 올라가고, 스티커가 없는 곳은 터치가 글상자로 통과 */}
       <View style={StyleSheet.absoluteFill} pointerEvents={drawing ? 'none' : 'box-none'}>
-        <StickerLayer stickers={stickers} selectedId={selectedId} pageW={box.w} pageH={box.h} onSelect={setSelectedId} onCommit={commit} editingId={editingId} onEditText={onEditText} drag={groupDrag} />
+        <StickerLayer stickers={stickers} selectedId={selectedId} pageW={box.w} pageH={box.h} onSelect={selectSticker} onCommit={commit} editingId={editingId} onEditText={onEditText} drag={groupDrag} inputAccessoryViewID={hasKbBar ? kbBarId : undefined} />
       </View>
 
       {showRemote && pageLabel ? (
@@ -323,24 +328,23 @@ function DiaryPageBase({ dayKey, entry, onText, onStickers, onStrokes, onScratch
         </Pressable>
       ) : null}
 
-      {showRemote && <RemoteMenu items={remoteItems ?? [...(['pen', 'text', 'sticker', 'photo', 'tape'] as RemoteKey[]), ...(pageLabel ? (['layout'] as RemoteKey[]) : []), 'calendar', 'save', ...(onShelf ? (['shelf'] as RemoteKey[]) : [])]} onPick={onRemote} />}
+      {showRemote && <RemoteMenu items={remoteItems ?? [...(['pen', 'text', 'sticker', 'photo', 'tape'] as RemoteKey[]), 'calendar', 'save', ...(onShelf ? (['shelf'] as RemoteKey[]) : [])]} onPick={onRemote} />}
 
       {cutting && selected?.photo && (
         <CutoutModal photo={selected.photo} imgAspect={selected.imgAspect ?? 1} onDone={applyCut} onClose={() => setCutting(false)} />
       )}
 
-      {layoutSheet && (
-        <LayoutSheet
-          current={layout ?? 'none'}
-          onPick={(l) => {
-            onLayout?.(dayKey, l);
-            setLayoutSheet(false);
-          }}
-          onClose={() => setLayoutSheet(false)}
-        />
-      )}
-
       {sheet && <StickerSheet initialCat={sheetCat} onPick={addSticker} onClose={() => setSheet(false)} />}
+
+      {hasKbBar && (
+        <InputAccessoryView nativeID={kbBarId}>
+          <View style={s.kbBar}>
+            <Pressable onPress={editingId ? finishEdit : () => Keyboard.dismiss()} style={s.kbDone} accessibilityRole="button" accessibilityLabel="키보드 내리기">
+              <Text style={s.kbDoneText}>{editingId ? '✓ 글상자 완료' : '키보드 내리기 ⌄'}</Text>
+            </Pressable>
+          </View>
+        </InputAccessoryView>
+      )}
     </View>
   );
 }
@@ -386,8 +390,6 @@ const s = StyleSheet.create({
     position: 'absolute', left: 18, top: 16, flexDirection: 'row', alignItems: 'center',
     borderWidth: 1, borderColor: '#2B2B2B', backgroundColor: color.paper, paddingVertical: 7, paddingHorizontal: 12,
   },
-  // 공책 쪽 칸 나누기 구분선이 놓이는 영역 (테두리 포함)
-  panels: { position: 'absolute', left: 12, right: 12, top: 22, bottom: 16, borderWidth: 1, borderColor: '#B9B9B9' },
   // 페이지를 두른 가는 선. 날짜 상자가 윗선에 걸쳐 있어서 머리말처럼 보임
   frame: { position: 'absolute', left: 12, right: 12, top: 43, bottom: 16, borderWidth: 1, borderColor: '#B9B9B9' },
   dateDay: { fontFamily: font.serif, fontSize: 34, lineHeight: 40, color: '#2B2B2B', minWidth: 22, textAlign: 'center' },
@@ -430,5 +432,8 @@ const s = StyleSheet.create({
   rotBtns: { flexDirection: 'row', width: '100%' },
   rotBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 36 },
   editIcon: { fontSize: 22, color: color.text },
+  kbBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#F4F4F4', borderTopWidth: 1, borderTopColor: '#E0E0E0' },
+  kbDone: { minHeight: 36, paddingHorizontal: 14, justifyContent: 'center', borderRadius: theme.radius.pill, backgroundColor: color.accentSoft },
+  kbDoneText: { fontFamily: font.bold, fontSize: 15, color: color.text },
   editLabel: { fontFamily: font.bold, fontSize: 12, color: color.text },
 });

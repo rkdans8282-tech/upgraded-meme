@@ -9,7 +9,7 @@ const R_IN = 105;
 const ITEM = 46;
 const FAB = 56;
 
-export type RemoteKey = 'pen' | 'sticker' | 'photo' | 'tape' | 'calendar' | 'save' | 'shelf' | 'text' | 'layout';
+export type RemoteKey = 'pen' | 'sticker' | 'photo' | 'tape' | 'calendar' | 'save' | 'shelf' | 'text';
 
 const icon = (k: RemoteKey): ReactNode => {
   const p = { stroke: color.text, strokeWidth: 1.8, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
@@ -26,8 +26,6 @@ const icon = (k: RemoteKey): ReactNode => {
       return (<><Path d="M5 4h12l3 3v13H5z" {...p} /><Path d="M8 4v5h7V4M8 20v-6h8v6" {...p} /></>);
     case 'text':
       return (<><Path d="M5 6V4h14v2M12 4v16M9 20h6" {...p} /></>);
-    case 'layout':
-      return (<><Rect x={4} y={4} width={16} height={16} {...p} /><Path d="M12 4v16M4 12h16" {...p} /></>);
     case 'shelf':
       return (<Path d="M4 20V6h4v14M10 20V4h4v16M16 20V8l4 1v11M3 20h18" {...p} />);
     case 'calendar':
@@ -35,7 +33,7 @@ const icon = (k: RemoteKey): ReactNode => {
   }
 };
 
-const LABELS: Record<RemoteKey, string> = { pen: '펜', sticker: '스티커', photo: '사진', tape: '테이프', calendar: '달력', save: '저장', shelf: '책장', text: '글상자', layout: '칸 나누기' };
+const LABELS: Record<RemoteKey, string> = { pen: '펜', sticker: '스티커', photo: '사진', tape: '테이프', calendar: '달력', save: '저장', shelf: '책장', text: '글상자' };
 
 type Props = { items: RemoteKey[]; onPick: (k: RemoteKey) => void };
 
